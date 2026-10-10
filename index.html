@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="ms" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Semakan Hafalan Fiqh Muamalat</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts for Malay & Arabic -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs for Cloud Sync across devices -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        arabic: ['Amiri', 'serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#115e59',
+                            900: '#134e4a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .arabic-text {
+            font-family: 'Amiri', serif;
+            direction: rtl;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="h-full text-slate-800 font-sans flex flex-col min-h-screen">
+
+    <!-- Navigation Bar -->
+    <header class="bg-gradient-to-r from-brand-800 via-brand-700 to-teal-800 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm border border-white/20 shadow-inner">
+                    <i class="fa-solid fa-book-quran text-teal-200 text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2">
+                        <span>Sistem Semakan Hafalan</span>
+                        <span class="bg-teal-500/30 text-teal-100 text-xs px-2.5 py-0.5 rounded-full border border-teal-400/30 font-semibold">Fiqh Muamalat</span>
+                    </h1>
+                    <div class="flex items-center gap-2">
+                        <span id="sync-badge" class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.2 rounded-full bg-amber-400/20 text-amber-200 border border-amber-300/30">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> Mod Lokal
+                        </span>
+                        <span class="text-[11px] text-teal-100/80 font-medium">Platform Semakan Murid</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="openCloudModal()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-400/20 hover:bg-amber-400/30 text-amber-100 border border-amber-300/30 transition flex items-center gap-1.5" title="Tetapan Sync Awan (Buka pada Pelbagai Device)">
+                    <i class="fa-solid fa-cloud-arrow-up text-amber-300"></i>
+                    <span class="hidden sm:inline">Sync Awan (Cloud)</span>
+                </button>
+                <button id="btn-view-students" onclick="switchTab('tracker')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-brand-800 hover:bg-teal-50 shadow-sm transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Semakan</span>
+                </button>
+                <button id="btn-view-summary" onclick="switchTab('summary')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span class="hidden sm:inline">Ringkasan</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- TAB 1: TRACKER VIEW -->
+        <div id="view-tracker" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left Sidebar: Student Selection -->
+            <aside class="lg:col-span-4 xl:col-span-3 space-y-4">
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-users text-brand-600"></i>
+                            Senarai Murid (<span id="student-count">7</span>)
+                        </h2>
+                        <span class="text-[10px] text-slate-400 font-medium">Klik nama</span>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="relative mb-3">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" id="search-student" onkeyup="filterStudents()" placeholder="Cari nama murid..." class="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-slate-50/50">
+                    </div>
+
+                    <!-- Student List Container -->
+                    <div id="student-list" class="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <!-- Legend Card -->
+                <div class="bg-teal-50/60 rounded-2xl p-4 border border-teal-100/80 text-xs space-y-2">
+                    <h3 class="font-bold text-teal-900 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info text-brand-600"></i>
+                        Status Petak Hafalan
+                    </h3>
+                    <div class="flex items-center gap-2 text-slate-700 text-[11px]">
+                        <span class="w-5 h-5 rounded-md bg-emerald-500 text-white flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-check"></i></span>
+                        <span><strong>✓ Wajib & Dah Hafal</strong></span>
+                    </div>
+                    <div class="flex items-center gap-2 text-slate-700 text-[11px]">
+                        <span class="w-5 h-5 rounded-md bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-plus text-[10px]"></i></span>
+                        <span><strong>+ Wajib & Belum Hafal</strong> (Tekan)</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-slate-700 text-[11px]">
+                        <span class="w-5 h-5 rounded-md bg-slate-100 text-slate-400 border border-slate-200 flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-xmark"></i></span>
+                        <span><strong>X Tidak Perlu Hafal</strong> (Terkunci)</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Matrix Area -->
+            <section class="lg:col-span-8 xl:col-span-9 space-y-5">
+                
+                <!-- Active Student Card -->
+                <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div class="flex items-center space-x-3">
+                        <div id="student-avatar" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-brand-100 text-brand-700 font-extrabold text-lg sm:text-xl flex items-center justify-center border-2 border-brand-200 shadow-sm shrink-0">
+                            -
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-brand-700 bg-brand-50 px-2.5 py-0.5 rounded-full border border-brand-200 uppercase tracking-wide">Profil Murid</span>
+                            <h2 id="active-student-name" class="text-base sm:text-lg font-bold text-slate-900 mt-0.5">Pilih Murid</h2>
+                            <p class="text-xs text-slate-500">Mata Pelajaran: <strong class="text-slate-700">Fiqh Muamalat (فقه المعاملات)</strong></p>
+                        </div>
+                    </div>
+
+                    <div class="w-full sm:w-auto bg-slate-50 rounded-xl p-3 border border-slate-200 flex items-center justify-between sm:justify-end gap-4">
+                        <div class="text-left sm:text-right">
+                            <span class="text-[10px] font-bold uppercase text-slate-400 block">Status Kemajuan</span>
+                            <span id="active-student-score" class="text-base sm:text-lg font-bold text-slate-800">0 / 33</span>
+                            <span id="active-student-percentage" class="text-xs font-bold text-brand-600 bg-brand-100 px-2 py-0.5 rounded-md ml-1">0%</span>
+                        </div>
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 relative flex items-center justify-center">
+                            <svg class="w-10 h-10 sm:w-12 sm:h-12 transform -rotate-90" viewBox="0 0 36 36">
+                                <path class="text-slate-200" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path id="progress-circle" class="text-brand-500 transition-all duration-500 ease-out" stroke-dasharray="0, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            </svg>
+                            <i class="fa-solid fa-award text-brand-600 absolute text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Matrix Table -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                    <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-table-cells text-brand-600"></i>
+                            <h3 class="font-bold text-xs sm:text-sm text-slate-800">Jadual Matriks Hafalan Murid</h3>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="manualSaveAlert()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-600 text-white hover:bg-brand-700 shadow-sm transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span>Simpan Data</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[650px]">
+                            <thead>
+                                <tr class="bg-slate-100/80 text-slate-700 text-xs font-bold border-b border-slate-200">
+                                    <th class="py-3 px-4 w-44 text-left">Bab (الباب)</th>
+                                    <th class="py-3 px-2 text-center w-24">
+                                        <div>Pengertian</div>
+                                        <div class="arabic-text text-sm text-slate-600">تعريف</div>
+                                    </th>
+                                    <th class="py-3 px-2 text-center w-24">
+                                        <div>Dalil</div>
+                                        <div class="arabic-text text-sm text-slate-600">دليل</div>
+                                    </th>
+                                    <th class="py-3 px-2 text-center w-24">
+                                        <div>Hukum</div>
+                                        <div class="arabic-text text-sm text-slate-600">أحكام</div>
+                                    </th>
+                                    <th class="py-3 px-2 text-center w-24">
+                                        <div>Jenis</div>
+                                        <div class="arabic-text text-sm text-slate-600">أنواع</div>
+                                    </th>
+                                    <th class="py-3 px-2 text-center w-24">
+                                        <div>Rukun</div>
+                                        <div class="arabic-text text-sm text-slate-600">أركان</div>
+                                    </th>
+                                    <th class="py-3 px-2 text-center w-24">
+                                        <div>Syarat</div>
+                                        <div class="arabic-text text-sm text-slate-600">شروط</div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="matrix-tbody" class="divide-y divide-slate-200/70 text-sm">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between">
+                        <span><i class="fa-solid fa-lock text-slate-400 mr-1"></i> Petak kelabu [X] tidak perlu dihafal & dikunci.</span>
+                        <span id="last-saved-time">Autosave Aktif</span>
+                    </div>
+                </div>
+
+            </section>
+        </div>
+
+        <!-- TAB 2: CLASS SUMMARY VIEW -->
+        <div id="view-summary" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 space-y-6">
+                <div class="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200 pb-4">
+                    <div>
+                        <h2 class="text-base sm:text-lg font-bold text-slate-900">Ringkasan & Prestasi Hafalan Kelas</h2>
+                        <p class="text-xs text-slate-500">Pantauan keseluruhan 7 orang murid bagi Fiqh Muamalat</p>
+                    </div>
+                    <button onclick="window.print()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i>
+                        <span>Cetak Laporan</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-2xl p-4 border border-teal-100">
+                        <div class="text-xs font-bold text-teal-700 uppercase tracking-wider mb-1">Purata Hafalan Kelas</div>
+                        <div id="summary-class-avg" class="text-2xl font-black text-teal-900">0%</div>
+                        <div class="w-full bg-teal-200/60 h-2 rounded-full mt-2 overflow-hidden">
+                            <div id="summary-class-bar" class="bg-teal-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100">
+                        <div class="text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">Jumlah Item Dihafal</div>
+                        <div id="summary-total-items" class="text-2xl font-black text-blue-900">0 / 231</div>
+                        <div class="text-[11px] text-blue-600 font-medium mt-1">Selesai kesemuanya</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-100">
+                        <div class="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1">Pencapaian Tertinggi</div>
+                        <div id="summary-top-student" class="text-sm font-bold text-amber-900 truncate">-</div>
+                        <div id="summary-top-score" class="text-[11px] text-amber-700 font-semibold mt-0.5">0% Hafal</div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 text-xs font-bold border-b border-slate-200">
+                                <th class="py-3 px-4">Kedudukan</th>
+                                <th class="py-3 px-4">Nama Murid</th>
+                                <th class="py-3 px-4 text-center">Sub-topik Dihafal</th>
+                                <th class="py-3 px-4 w-48 text-center">Peratusan</th>
+                                <th class="py-3 px-4 text-center">Tindakan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summary-tbody" class="divide-y divide-slate-200 text-sm">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Date Picker Modal -->
+    <div id="date-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </div>
+                    <h3 class="font-bold text-sm text-slate-800">Rekod Tarikh Hafalan</h3>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                    <div class="text-slate-400 font-medium text-[10px]">Sub-Topik:</div>
+                    <div id="modal-topic-title" class="font-bold text-slate-800 text-xs mt-0.5">-</div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tarikh Berjaya Hafal:</label>
+                    <input type="date" id="modal-date-input" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button onclick="unmarkTopic()" id="btn-unmark" class="px-3 py-2 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition">
+                    Padam
+                </button>
+                <button onclick="confirmMarkTopic()" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 shadow-sm transition">
+                    Simpan Tarikh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cloud Sync Config Modal -->
+    <div id="cloud-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-cloud"></i>
+                    </div>
+                    <h3 class="font-bold text-sm text-slate-800">Sambungan Sync Awan (Cloud)</h3>
+                </div>
+                <button onclick="closeCloudModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-600 leading-relaxed">
+                Masukkan **Firebase Realtime Database Config** anda di bawah supaya aplikasi ini boleh digunakan pada pelbagai peranti (*cross-device sync*) dengan satu link pautan.
+            </p>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Firebase Database URL / Config (JSON):</label>
+                    <textarea id="firebase-config-input" rows="4" placeholder='{"databaseURL": "https://projek-anda-default-rtdb.firebaseio.com"}' class="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-slate-50"></textarea>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                <button onclick="resetFirebaseConfig()" class="px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">
+                    Guna Mod Lokal
+                </button>
+                <button onclick="saveFirebaseConfig()" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-sm transition">
+                    Sambungkan Awan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DATA STRUCTURES
+        const STUDENT_NAMES = [
+            "AREEFA DALILA BINTI SHARUL AZLAN",
+            "FAIROZ SYAHMI BIN MOHD ZAIDI",
+            "MUIZ ZAMAN BIN MOHAMAD ZAKI",
+            "NOR QAMIELIEYA BINTI AMRAN",
+            "NUR AUNI SYAZWINA BINTI MOHD AZRIL",
+            "NUR IZZATI UMAIRA BINTI ABDULLAH",
+            "QAMIEYL IYQRAM ASZRIN BIN ABDULLAH"
+        ];
+
+        const BABS = [
+            { id: "bai", nameMalay: "Al-Bai' (Jual Beli)", nameArabic: "البيع" },
+            { id: "riba", nameMalay: "Al-Riba (Riba)", nameArabic: "الربا" },
+            { id: "khiyar", nameMalay: "Al-Khiyar (Khiyar)", nameArabic: "الخيار" },
+            { id: "salam", nameMalay: "Al-Salam (Salam)", nameArabic: "السلم" },
+            { id: "rahn", nameMalay: "Al-Rahn (Gadaian)", nameArabic: "الرهن" },
+            { id: "dhaman", nameMalay: "Al-Dhaman (Jaminan)", nameArabic: "الضمان" },
+            { id: "wakalah", nameMalay: "Al-Wakalah (Wakil)", nameArabic: "الوكالة" },
+            { id: "qiradh", nameMalay: "Al-Qiradh (Pelaburan/Mudarabah)", nameArabic: "القراض" }
+        ];
+
+        const SUBTOPICS = [
+            { id: "definition", nameMalay: "Pengertian", nameArabic: "تعريف" },
+            { id: "dalil", nameMalay: "Dalil", nameArabic: "دليل" },
+            { id: "hukum", nameMalay: "Hukum", nameArabic: "أحكام" },
+            { id: "jenis", nameMalay: "Jenis", nameArabic: "أنواع" },
+            { id: "rukun", nameMalay: "Rukun", nameArabic: "أركان" },
+            { id: "syarat", nameMalay: "Syarat", nameArabic: "شروط" }
+        ];
+
+        // Syllabus Rules (true = wajib hafal, false = locked / tidak perlu hafal)
+        const MATRIX_RULES = {
+            "bai":     { definition: true, dalil: true, hukum: false, jenis: true, rukun: true, syarat: true },
+            "riba":    { definition: true, dalil: true, hukum: true, jenis: true, rukun: false, syarat: true },
+            "khiyar":  { definition: false, dalil: false, hukum: false, jenis: true, rukun: false, syarat: false },
+            "salam":   { definition: true, dalil: true, hukum: false, jenis: false, rukun: true, syarat: true },
+            "rahn":    { definition: true, dalil: true, hukum: true, jenis: false, rukun: true, syarat: true },
+            "dhaman":  { definition: true, dalil: true, hukum: true, jenis: false, rukun: true, syarat: true },
+            "wakalah": { definition: true, dalil: true, hukum: true, jenis: false, rukun: true, syarat: true },
+            "qiradh":  { definition: true, dalil: true, hukum: true, jenis: false, rukun: true, syarat: true }
+        };
+
+        const TOTAL_REQUIRED_ITEMS = Object.values(MATRIX_RULES).reduce((acc, row) => {
+            return acc + Object.values(row).filter(val => val === true).length;
+        }, 0); // 33 items total
+
+        let studentsData = {};
+        let activeStudentId = 0;
+        let selectedCellTarget = null;
+        let firebaseDb = null;
+        let isCloudConnected = false;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initFirebaseOrLocal();
+            renderStudentList();
+            selectStudent(0);
+        });
+
+        // Initialize Data Storage or Cloud Sync
+        function initFirebaseOrLocal() {
+            const savedFirebaseCfg = localStorage.getItem('hafalan_firebase_config');
+            if (savedFirebaseCfg) {
+                try {
+                    const config = JSON.parse(savedFirebaseCfg);
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(config);
+                    }
+                    firebaseDb = firebase.database();
+                    isCloudConnected = true;
+
+                    // Update UI Badge
+                    document.getElementById('sync-badge').className = "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-300/30";
+                    document.getElementById('sync-badge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Mod Awan (Online)';
+
+                    // Listen for Live Realtime Changes across all devices!
+                    firebaseDb.ref('hafalan_records').on('value', (snapshot) => {
+                        const val = snapshot.val();
+                        if (val) {
+                            studentsData = val;
+                        } else {
+                            studentsData = createDefaultState();
+                        }
+                        renderStudentList();
+                        renderMatrixTable();
+                        updateStudentProgressHeader();
+                        updateSummaryData();
+                    });
+                    return;
+                } catch(e) {
+                    console.error("Firebase Initialization Error:", e);
+                }
+            }
+
+            // Fallback to Local Storage
+            const savedLocal = localStorage.getItem('hafalan_fiqh_data_v2');
+            if (savedLocal) {
+                try {
+                    studentsData = JSON.parse(savedLocal);
+                } catch(e) {
+                    studentsData = createDefaultState();
+                }
+            } else {
+                studentsData = createDefaultState();
+            }
+        }
+
+        function createDefaultState() {
+            const data = {};
+            STUDENT_NAMES.forEach((name, idx) => {
+                data[idx] = { id: idx, name: name, records: {} };
+            });
+            return data;
+        }
+
+        function saveData() {
+            if (isCloudConnected && firebaseDb) {
+                firebaseDb.ref('hafalan_records').set(studentsData);
+            } else {
+                localStorage.setItem('hafalan_fiqh_data_v2', JSON.stringify(studentsData));
+            }
+            const now = new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('last-saved-time').innerText = 'Disimpan ' + now;
+        }
+
+        function switchTab(tab) {
+            const trackerTab = document.getElementById('view-tracker');
+            const summaryTab = document.getElementById('view-summary');
+            const btnStudents = document.getElementById('btn-view-students');
+            const btnSummary = document.getElementById('btn-view-summary');
+
+            if (tab === 'tracker') {
+                trackerTab.classList.remove('hidden');
+                summaryTab.classList.add('hidden');
+                btnStudents.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-brand-800 hover:bg-teal-50 shadow-sm transition flex items-center gap-1.5";
+                btnSummary.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition flex items-center gap-1.5";
+            } else {
+                trackerTab.classList.add('hidden');
+                summaryTab.classList.remove('hidden');
+                btnSummary.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-brand-800 hover:bg-teal-50 shadow-sm transition flex items-center gap-1.5";
+                btnStudents.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition flex items-center gap-1.5";
+                updateSummaryData();
+            }
+        }
+
+        function renderStudentList() {
+            const container = document.getElementById('student-list');
+            container.innerHTML = '';
+
+            STUDENT_NAMES.forEach((name, idx) => {
+                const completedCount = getStudentCompletedCount(idx);
+                const percent = Math.round((completedCount / TOTAL_REQUIRED_ITEMS) * 100);
+                const isActive = idx === activeStudentId;
+                const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('');
+
+                const item = document.createElement('button');
+                item.className = `w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2 ${
+                    isActive 
+                        ? 'bg-brand-50/90 border-brand-500 ring-2 ring-brand-500/20 shadow-sm' 
+                        : 'bg-white hover:bg-slate-50 border-slate-200'
+                }`;
+                item.onclick = () => selectStudent(idx);
+
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2 overflow-hidden">
+                        <div class="w-7 h-7 rounded-lg ${isActive ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600'} font-bold text-[11px] flex items-center justify-center shrink-0">
+                            ${initials}
+                        </div>
+                        <div class="truncate">
+                            <div class="font-bold text-xs ${isActive ? 'text-brand-900' : 'text-slate-800'} truncate">${name}</div>
+                            <div class="text-[10px] text-slate-500 font-medium">${completedCount} / ${TOTAL_REQUIRED_ITEMS} Hafal</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${percent === 100 ? 'bg-emerald-100 text-emerald-700' : (percent > 0 ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-500')}">
+                        ${percent}%
+                    </span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function filterStudents() {
+            const query = document.getElementById('search-student').value.toLowerCase();
+            const buttons = document.getElementById('student-list').getElementsByTagName('button');
+            Array.from(buttons).forEach((btn) => {
+                btn.classList.toggle('hidden', !btn.innerText.toLowerCase().includes(query));
+            });
+        }
+
+        function selectStudent(idx) {
+            activeStudentId = idx;
+            const student = studentsData[idx] || { name: STUDENT_NAMES[idx] };
+
+            document.getElementById('active-student-name').innerText = student.name;
+            const initials = student.name.split(' ').map(n => n[0]).slice(0, 2).join('');
+            document.getElementById('student-avatar').innerText = initials;
+
+            renderStudentList();
+            renderMatrixTable();
+            updateStudentProgressHeader();
+        }
+
+        function getStudentCompletedCount(studentId) {
+            const records = studentsData[studentId]?.records || {};
+            let count = 0;
+            Object.keys(records).forEach(key => {
+                if (records[key] && records[key].completed) count++;
+            });
+            return count;
+        }
+
+        function updateStudentProgressHeader() {
+            const count = getStudentCompletedCount(activeStudentId);
+            const percent = Math.round((count / TOTAL_REQUIRED_ITEMS) * 100);
+
+            document.getElementById('active-student-score').innerText = `${count} / ${TOTAL_REQUIRED_ITEMS}`;
+            document.getElementById('active-student-percentage').innerText = `${percent}%`;
+
+            const circle = document.getElementById('progress-circle');
+            circle.setAttribute('stroke-dasharray', `${percent}, 100`);
+        }
+
+        function renderMatrixTable() {
+            const tbody = document.getElementById('matrix-tbody');
+            tbody.innerHTML = '';
+
+            const studentRecords = studentsData[activeStudentId]?.records || {};
+
+            BABS.forEach(bab => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/80 transition-colors";
+
+                let html = `
+                    <td class="py-2.5 px-4 border-r border-slate-200 bg-slate-50/50">
+                        <div class="font-bold text-xs text-slate-800">${bab.nameMalay}</div>
+                        <div class="arabic-text text-sm text-brand-800 font-bold leading-tight">${bab.nameArabic}</div>
+                    </td>
+                `;
+
+                SUBTOPICS.forEach(sub => {
+                    const isRequired = MATRIX_RULES[bab.id][sub.id];
+                    const recordKey = `${bab.id}_${sub.id}`;
+                    const record = studentRecords[recordKey];
+
+                    if (!isRequired) {
+                        html += `
+                            <td class="py-2 px-1 text-center bg-slate-100/70 border-r border-slate-200/60 select-none">
+                                <div class="inline-flex items-center justify-center w-7 h-7 rounded-md bg-slate-200/60 text-slate-400 font-bold text-xs">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </div>
+                            </td>
+                        `;
+                    } else {
+                        const isDone = record && record.completed;
+                        const dateFormatted = isDone && record.date ? formatDateShort(record.date) : '';
+
+                        html += `
+                            <td class="py-2 px-1 text-center border-r border-slate-200/60">
+                                <button onclick="openDateModal('${bab.id}', '${sub.id}')" 
+                                        class="w-full h-12 rounded-xl transition-all flex flex-col items-center justify-center ${
+                                            isDone 
+                                                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300/50' 
+                                                : 'bg-slate-50 hover:bg-teal-50 text-slate-400 border border-dashed border-slate-300 hover:border-brand-400'
+                                        }">
+                                    ${
+                                        isDone 
+                                            ? `<i class="fa-solid fa-check font-bold text-xs"></i>
+                                               <span class="text-[8px] font-bold mt-0.5 leading-none bg-emerald-700/40 px-1 py-0.5 rounded">${dateFormatted || 'Hafal'}</span>`
+                                            : `<i class="fa-solid fa-plus text-[10px]"></i>`
+                                    }
+                                </button>
+                            </td>
+                        `;
+                    }
+                });
+
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openDateModal(babId, subId) {
+            selectedCellTarget = { babId, subId };
+            const babObj = BABS.find(b => b.id === babId);
+            const subObj = SUBTOPICS.find(s => s.id === subId);
+
+            document.getElementById('modal-topic-title').innerText = `${babObj.nameMalay} - ${subObj.nameMalay}`;
+
+            const recordKey = `${babId}_${subId}`;
+            const existingRecord = studentsData[activeStudentId]?.records?.[recordKey];
+
+            const dateInput = document.getElementById('modal-date-input');
+            const btnUnmark = document.getElementById('btn-unmark');
+
+            if (existingRecord && existingRecord.completed) {
+                dateInput.value = existingRecord.date || getTodayYMD();
+                btnUnmark.classList.remove('hidden');
+            } else {
+                dateInput.value = getTodayYMD();
+                btnUnmark.classList.add('hidden');
+            }
+
+            document.getElementById('date-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('date-modal').classList.add('hidden');
+            selectedCellTarget = null;
+        }
+
+        function confirmMarkTopic() {
+            if (!selectedCellTarget) return;
+            const { babId, subId } = selectedCellTarget;
+            const dateVal = document.getElementById('modal-date-input').value || getTodayYMD();
+            const recordKey = `${babId}_${subId}`;
+
+            if (!studentsData[activeStudentId].records) {
+                studentsData[activeStudentId].records = {};
+            }
+
+            studentsData[activeStudentId].records[recordKey] = { completed: true, date: dateVal };
+
+            saveData();
+            closeModal();
+            renderMatrixTable();
+            updateStudentProgressHeader();
+            renderStudentList();
+        }
+
+        function unmarkTopic() {
+            if (!selectedCellTarget) return;
+            const { babId, subId } = selectedCellTarget;
+            const recordKey = `${babId}_${subId}`;
+
+            if (studentsData[activeStudentId]?.records?.[recordKey]) {
+                delete studentsData[activeStudentId].records[recordKey];
+            }
+
+            saveData();
+            closeModal();
+            renderMatrixTable();
+            updateStudentProgressHeader();
+            renderStudentList();
+        }
+
+        function manualSaveAlert() {
+            saveData();
+            alert('Data hafalan berjaya disimpan!');
+        }
+
+        function updateSummaryData() {
+            const tbody = document.getElementById('summary-tbody');
+            tbody.innerHTML = '';
+
+            let totalClassCompleted = 0;
+            const totalClassMaxPossible = STUDENT_NAMES.length * TOTAL_REQUIRED_ITEMS;
+            let topStudentName = '-';
+            let topStudentScore = -1;
+
+            const sortedStudents = STUDENT_NAMES.map((name, idx) => {
+                const count = getStudentCompletedCount(idx);
+                const percent = Math.round((count / TOTAL_REQUIRED_ITEMS) * 100);
+                totalClassCompleted += count;
+
+                if (count > topStudentScore) {
+                    topStudentScore = count;
+                    topStudentName = name;
+                }
+                return { idx, name, count, percent };
+            }).sort((a, b) => b.count - a.count);
+
+            const classAvgPercent = Math.round((totalClassCompleted / totalClassMaxPossible) * 100);
+            document.getElementById('summary-class-avg').innerText = `${classAvgPercent}%`;
+            document.getElementById('summary-class-bar').style.width = `${classAvgPercent}%`;
+            document.getElementById('summary-total-items').innerText = `${totalClassCompleted} / ${totalClassMaxPossible}`;
+            document.getElementById('summary-top-student').innerText = topStudentName;
+            document.getElementById('summary-top-score').innerText = `${Math.round((topStudentScore / TOTAL_REQUIRED_ITEMS) * 100)}% (${topStudentScore}/${TOTAL_REQUIRED_ITEMS})`;
+
+            sortedStudents.forEach((st, rank) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50";
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-bold text-xs text-slate-500">${rank + 1}</td>
+                    <td class="py-3 px-4 font-bold text-slate-800 text-xs">${st.name}</td>
+                    <td class="py-3 px-4 text-center font-semibold text-xs text-slate-700">${st.count} / ${TOTAL_REQUIRED_ITEMS}</td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <div class="w-20 bg-slate-100 h-2 rounded-full overflow-hidden">
+                                <div class="bg-brand-600 h-full rounded-full" style="width: ${st.percent}%"></div>
+                            </div>
+                            <span class="text-xs font-bold text-brand-700">${st.percent}%</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="switchTab('tracker'); selectStudent(${st.idx});" class="text-xs font-bold text-brand-600 hover:text-brand-800 underline">
+                            Semak
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Firebase Cloud Modal Logic
+        function openCloudModal() {
+            const savedFirebaseCfg = localStorage.getItem('hafalan_firebase_config') || '';
+            document.getElementById('firebase-config-input').value = savedFirebaseCfg;
+            document.getElementById('cloud-modal').classList.remove('hidden');
+        }
+
+        function closeCloudModal() {
+            document.getElementById('cloud-modal').classList.add('hidden');
+        }
+
+        function saveFirebaseConfig() {
+            const val = document.getElementById('firebase-config-input').value.trim();
+            if (val) {
+                try {
+                    JSON.parse(val);
+                    localStorage.setItem('hafalan_firebase_config', val);
+                    alert('Firebase Config disimpan! Halaman akan direfresh untuk menyambung ke Awan.');
+                    window.location.reload();
+                } catch(e) {
+                    alert('Format JSON Firebase Config tidak sah. Sila semak semula.');
+                }
+            }
+        }
+
+        function resetFirebaseConfig() {
+            localStorage.removeItem('hafalan_firebase_config');
+            alert('Kembali ke Mod Lokal.');
+            window.location.reload();
+        }
+
+        function getTodayYMD() {
+            const today = new Date();
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
+
+        function formatDateShort(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            return parts.length === 3 ? `${parts[2]}/${parts[1]}` : dateStr;
+        }
+    </script>
+</body>
+</html>
