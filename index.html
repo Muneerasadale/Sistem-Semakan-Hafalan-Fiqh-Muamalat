@@ -9,7 +9,7 @@
     <!-- Google Fonts: Inter & Tajawal (Arabic) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
@@ -25,6 +25,7 @@
                             500: '#0ea5e9',
                             600: '#0284c7',
                             700: '#0369a1',
+                            800: '#075985',
                         },
                         mint: {
                             50: '#f0fdf4',
@@ -76,18 +77,18 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
     <script>
-        // Matrix Definition based on provided Fiqh Muamalat image:
+        // Matrix Definition based strictly on the provided Fiqh Muamalat syllabus image:
         // '/' -> true (Required / Mandatory), 'X' -> false (Exempt / Disabled)
         const CURRICULUM = {
             titleArabic: "فقه المعاملات",
             titleMalay: "Fiqh Muamalat",
             columns: [
-                { id: "takrif", nameMalay: "Takrif", nameArabic: "تعريف" },
+                { id: "takrif", nameMalay: "Takrif (Definisi)", nameArabic: "تعريف" },
                 { id: "dalil", nameMalay: "Dalil", nameArabic: "دليل" },
-                { id: "ahkam", nameMalay: "Ahkam", nameArabic: "أحكام" },
-                { id: "anwa", nameMalay: "Anwa'", nameArabic: "أنواع" },
-                { id: "arkan", nameMalay: "Arkan", nameArabic: "أركان" },
-                { id: "shurut", nameMalay: "Shurut", nameArabic: "شروط" }
+                { id: "ahkam", nameMalay: "Ahkam (Hukum)", nameArabic: "أحكام" },
+                { id: "anwa", nameMalay: "Anwa' (Jenis)", nameArabic: "أنواع" },
+                { id: "arkan", nameMalay: "Arkan (Rukun)", nameArabic: "أركان" },
+                { id: "shurut", nameMalay: "Shurut (Syarat)", nameArabic: "شروط" }
             ],
             chapters: [
                 {
@@ -116,7 +117,7 @@
                 },
                 {
                     id: "al_rahn",
-                    nameMalay: "Al-Rahn (Cagaran)",
+                    nameMalay: "Al-Rahn (Cagaran / Gadai)",
                     nameArabic: "الرهن",
                     requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true }
                 },
@@ -134,7 +135,7 @@
                 },
                 {
                     id: "al_qiradh",
-                    nameMalay: "Al-Qiradh (Pelaburan)",
+                    nameMalay: "Al-Qiradh (Pelaburan / Mudharabah)",
                     nameArabic: "القراض",
                     requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true }
                 }
@@ -161,6 +162,93 @@
         });
     </script>
 
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fiqh-muamalat-hafalan-app';
+        let firebaseConfig = null;
+
+        try {
+            if (typeof __firebase_config !== 'undefined') {
+                firebaseConfig = JSON.parse(__firebase_config);
+            }
+        } catch (e) {
+            console.warn("Firebase config parse skipped, using LocalStorage mode.");
+        }
+
+        window.db = null;
+        window.isCloudConnected = false;
+
+        async function initFirebase() {
+            if (!firebaseConfig) {
+                updateCloudStatusUI(false, "Mod Tempatan (LocalStorage)");
+                return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                window.db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                window.isCloudConnected = true;
+                updateCloudStatusUI(true, "Awan Terhubung (Firestore Sync)");
+                setupRealtimeListener();
+            } catch (err) {
+                console.warn("Firebase fallback to offline:", err);
+                window.isCloudConnected = false;
+                updateCloudStatusUI(false, "Mod Offline / Tempatan");
+            }
+        }
+
+        function setupRealtimeListener() {
+            if (!window.db) return;
+            const docRef = doc(window.db, 'artifacts', appId, 'public', 'data', 'hafalan_records', 'main_data');
+
+            onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const cloudData = docSnap.data().records || {};
+                    window.memorizationData = cloudData;
+                    localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(cloudData));
+                    if (window.renderAllViews) window.renderAllViews();
+                }
+            }, (error) => {
+                console.error("Firestore sync error:", error);
+            });
+        }
+
+        window.saveDataToCloud = async function(data) {
+            if (!window.db || !window.isCloudConnected) return;
+            try {
+                const docRef = doc(window.db, 'artifacts', appId, 'public', 'data', 'hafalan_records', 'main_data');
+                await setDoc(docRef, { records: data, lastUpdated: new Date().toISOString() }, { merge: true });
+            } catch (err) {
+                console.error("Cloud save error:", err);
+            }
+        };
+
+        function updateCloudStatusUI(connected, text) {
+            const dot = document.getElementById('cloudStatusDot');
+            const statusText = document.getElementById('cloudStatusText');
+            if (dot) {
+                dot.className = connected 
+                    ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse"
+                    : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block";
+            }
+            if (statusText) statusText.innerText = text;
+        }
+
+        window.addEventListener('load', initFirebase);
+    </script>
+
     <!-- Top Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -169,22 +257,34 @@
                     <i data-lucide="book-open" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <h1 class="text-lg font-bold text-slate-800 leading-tight">Sistem Semakan Hafalan</h1>
+                    <h1 class="text-base sm:text-lg font-bold text-slate-800 leading-tight">Sistem Semakan Hafalan</h1>
                     <p class="text-xs text-brand-600 font-semibold font-arabic">فقه المعاملات - Fiqh Muamalat</p>
                 </div>
             </div>
 
-            <!-- Header Actions -->
+            <!-- Role Selector & Header Actions -->
             <div class="flex items-center space-x-2 sm:space-x-3">
+                <!-- User Role Selector Toggle -->
+                <div class="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-semibold">
+                    <button id="roleStudentBtn" onclick="setUserRole('student')" class="px-2.5 py-1 rounded-md transition flex items-center gap-1 bg-white text-slate-800 shadow-xs">
+                        <i data-lucide="user" class="w-3.5 h-3.5 text-brand-600"></i>
+                        <span>Pelajar</span>
+                    </button>
+                    <button id="roleTeacherBtn" onclick="setUserRole('teacher')" class="px-2.5 py-1 rounded-md transition flex items-center gap-1 text-slate-600 hover:text-slate-900">
+                        <i data-lucide="graduation-cap" class="w-3.5 h-3.5 text-mint-600"></i>
+                        <span>Guru / Tasmik</span>
+                    </button>
+                </div>
+
                 <button id="classOverviewBtn" onclick="selectView('overview')" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5">
                     <i data-lucide="layout-grid" class="w-4 h-4"></i>
-                    <span class="hidden sm:inline">Matriks Keseluruhan</span>
+                    <span class="hidden md:inline">Matriks Keseluruhan</span>
                 </button>
 
                 <button onclick="openSyncModal()" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition flex items-center gap-1.5">
-                    <span id="cloudStatusDot" class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                    <span id="cloudStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
                     <i data-lucide="cloud" class="w-4 h-4"></i>
-                    <span class="hidden sm:inline">Awan / Sync</span>
+                    <span id="cloudStatusText" class="hidden lg:inline">Awan / Sync</span>
                 </button>
 
                 <button onclick="saveCurrentData(true)" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white shadow-sm hover:shadow transition flex items-center gap-1.5">
@@ -194,6 +294,55 @@
             </div>
         </div>
     </header>
+
+    <!-- KPI Summary Section -->
+    <div class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 no-print">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- KPI 1 -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center gap-3">
+                <div class="p-3 bg-brand-50 text-brand-600 rounded-xl">
+                    <i data-lucide="pie-chart" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-500 font-medium">Purata Kelas</div>
+                    <div id="kpiClassAverage" class="text-xl font-bold text-slate-800">0%</div>
+                </div>
+            </div>
+
+            <!-- KPI 2 -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center gap-3">
+                <div class="p-3 bg-mint-50 text-mint-600 rounded-xl">
+                    <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-500 font-medium">Jumlah Item Hafal</div>
+                    <div id="kpiTotalMemorized" class="text-xl font-bold text-slate-800">0</div>
+                </div>
+            </div>
+
+            <!-- KPI 3 -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center gap-3">
+                <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                    <i data-lucide="award" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-500 font-medium">Selesai 100%</div>
+                    <div id="kpiCompletedStudents" class="text-xl font-bold text-slate-800">0 / 7</div>
+                </div>
+            </div>
+
+            <!-- KPI 4 -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center gap-3">
+                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                    <i data-lucide="trophy" class="w-6 h-6"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="text-xs text-slate-500 font-medium">Terbaik Kelas</div>
+                    <div id="kpiTopStudent" class="text-xs font-bold text-slate-800 truncate">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Main Container Layout -->
     <div class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col md:flex-row gap-6">
@@ -205,8 +354,9 @@
                     <i data-lucide="users" class="w-4 h-4 text-brand-600"></i>
                     Senarai Pelajar (<span id="studentCount">7</span>)
                 </h2>
-                <button onclick="triggerPrint()" title="Cetak Laporan" class="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg transition">
+                <button onclick="triggerPrint()" title="Cetak / Cetak Laporan PDF" class="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg transition flex items-center gap-1 text-xs font-medium">
                     <i data-lucide="printer" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Cetak</span>
                 </button>
             </div>
 
@@ -218,7 +368,7 @@
             </div>
 
             <!-- Student List Items -->
-            <div id="studentList" class="space-y-1.5 overflow-y-auto max-h-[calc(100vh-280px)] pr-1 flex-1">
+            <div id="studentList" class="space-y-1.5 overflow-y-auto max-h-[calc(100vh-320px)] pr-1 flex-1">
                 <!-- Dynamically populated -->
             </div>
 
@@ -249,6 +399,7 @@
                                 <h2 id="studentNameDisplay" class="text-base sm:text-lg font-bold text-slate-800">
                                     AREEFA DALILA BINTI SHARUL AZLAN
                                 </h2>
+                                <span id="userRoleBadge" class="text-[10px] bg-brand-50 text-brand-700 border border-brand-200 px-2 py-0.5 rounded-full font-bold">Mod Pelajar</span>
                             </div>
                             <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
                                 <span>Status Kemajuan Hafalan Fiqh Muamalat</span>
@@ -264,7 +415,7 @@
                             <div class="text-xs text-slate-500 font-medium">Keseluruhan Hafal</div>
                             <div class="text-xl font-bold text-emerald-600 flex items-baseline justify-end gap-1">
                                 <span id="studentScoreText">0</span>
-                                <span class="text-xs text-slate-400 font-normal">/ <span id="totalRequiredText">0</span></span>
+                                <span class="text-xs text-slate-400 font-normal">/ <span id="totalRequiredText">38</span></span>
                             </div>
                         </div>
                         <div class="relative w-14 h-14 flex items-center justify-center">
@@ -280,7 +431,7 @@
                 <!-- Progress Bar -->
                 <div class="mt-4">
                     <div class="flex justify-between text-xs text-slate-500 mb-1">
-                        <span>Kemajuan Tugasan Wajib Hafal</span>
+                        <span>Kemajuan Tugasan Wajib Hafal (38 Item)</span>
                         <span id="studentPctBarText" class="font-semibold text-emerald-600">0% Selesai</span>
                     </div>
                     <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
@@ -294,23 +445,23 @@
                 <!-- Filter buttons -->
                 <div class="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-lg text-xs">
                     <button onclick="setFilter('all')" id="filterAll" class="px-2.5 py-1 rounded-md font-medium bg-white text-slate-800 shadow-xs">Semua</button>
-                    <button onclick="setFilter('completed')" id="filterCompleted" class="px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900">Selesai</button>
+                    <button onclick="setFilter('completed')" id="filterCompleted" class="px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900">Telah Hafal</button>
                     <button onclick="setFilter('pending')" id="filterPending" class="px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900">Belum Hafal</button>
                 </div>
 
                 <!-- Legend Indicators -->
-                <div class="flex items-center space-x-4 text-xs">
+                <div class="flex flex-wrap items-center gap-3 sm:gap-4 text-xs">
                     <div class="flex items-center gap-1.5">
                         <span class="w-5 h-5 rounded-md bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center justify-center font-bold text-xs"><i data-lucide="check" class="w-3.5 h-3.5"></i></span>
                         <span class="text-slate-600">Wajib (Telah Hafal)</span>
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <span class="w-5 h-5 rounded-md bg-white border border-slate-300 flex items-center justify-center font-bold text-xs text-slate-400"><i data-lucide="circle" class="w-3 h-3 text-slate-300"></i></span>
-                        <span class="text-slate-600">Wajib (Belum)</span>
+                        <span class="w-5 h-5 rounded-md bg-rose-50 border border-rose-200 flex items-center justify-center font-bold text-xs text-rose-500"><i data-lucide="x" class="w-3.5 h-3.5"></i></span>
+                        <span class="text-slate-600">Wajib (Belum Hafal)</span>
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <span class="w-5 h-5 rounded-md bg-slate-200/80 text-slate-400 border border-slate-300 flex items-center justify-center font-bold text-xs"><i data-lucide="x" class="w-3.5 h-3.5"></i></span>
-                        <span class="text-slate-600">Tidak Perlu (X)</span>
+                        <span class="w-5 h-5 rounded-md bg-slate-200/80 text-slate-400 border border-slate-300 flex items-center justify-center font-bold text-xs"><i data-lucide="lock" class="w-3 h-3 text-slate-400"></i></span>
+                        <span class="text-slate-600">Tidak Wajib (X)</span>
                     </div>
                 </div>
             </div>
@@ -320,10 +471,10 @@
                 <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                     <div>
                         <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-                            <span>Jadual Hafalan Bab</span>
+                            <span>Jadual Hafalan Bab Fiqh Muamalat</span>
                             <span class="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">Matrix Semakan</span>
                         </h3>
-                        <p class="text-xs text-slate-500">Klik pada kotak hijau bertanda ( / ) untuk tandakan tarikh selesai hafal.</p>
+                        <p class="text-xs text-slate-500">Klik pada petak bertanda Wajib untuk meletakkan tarikh tasmik/hafalan.</p>
                     </div>
                     <div class="text-right font-arabic font-bold text-lg text-brand-700 hidden sm:block">
                         فقه المعاملات
@@ -332,7 +483,7 @@
 
                 <!-- Matrix Table -->
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse min-w-[650px]">
+                    <table class="w-full text-left border-collapse min-w-[700px]">
                         <thead>
                             <tr class="bg-slate-100/80 border-b border-slate-200 text-slate-700 text-xs uppercase tracking-wider">
                                 <th class="p-3 pl-4 font-bold w-48">Bab / Topik</th>
@@ -341,7 +492,7 @@
                                         document.write(`
                                             <th class="p-3 text-center border-l border-slate-200/60 font-semibold">
                                                 <div>${col.nameMalay}</div>
-                                                <div class="font-arabic text-sm text-brand-700 capitalize font-medium">${col.nameArabic}</div>
+                                                <div class="font-arabic text-sm text-brand-700 font-bold mt-0.5">${col.nameArabic}</div>
                                             </th>
                                         `);
                                     });
@@ -363,10 +514,10 @@
                             <i data-lucide="grid" class="w-5 h-5 text-brand-600"></i>
                             Matriks Ringkasan Semua Pelajar Kelas
                         </h3>
-                        <p class="text-xs text-slate-500">Paparan keseluruhan status hafalan 7 pelajar untuk semua tajuk Fiqh Muamalat.</p>
+                        <p class="text-xs text-slate-500">Paparan keseluruhan status hafalan 7 pelajar untuk kesemua 8 bab Fiqh Muamalat.</p>
                     </div>
                     <button onclick="selectView('single')" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 transition self-start sm:self-auto">
-                        ← Kembali ke Pelajar
+                        ← Kembali ke Semakan Pelajar
                     </button>
                 </div>
                 <div class="overflow-x-auto">
@@ -378,9 +529,9 @@
                                 <script>
                                     CURRICULUM.chapters.forEach(ch => {
                                         document.write(`
-                                            <th class="p-2 text-center border-l border-slate-200 font-semibold min-w-[90px]">
+                                            <th class="p-2 text-center border-l border-slate-200 font-semibold min-w-[95px]">
                                                 <div class="truncate" title="${ch.nameMalay}">${ch.nameMalay.split(' ')[0]}</div>
-                                                <div class="font-arabic text-xs text-brand-700">${ch.nameArabic}</div>
+                                                <div class="font-arabic text-xs text-brand-700 font-bold">${ch.nameArabic}</div>
                                             </th>
                                         `);
                                     });
@@ -403,7 +554,7 @@
             <div class="flex justify-between items-center pb-2 border-b border-slate-100">
                 <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
                     <i data-lucide="calendar" class="w-4 h-4 text-emerald-600"></i>
-                    Tandakan Tarikh Hafalan
+                    Tandakan Tarikh Hafalan / Tasmik
                 </h3>
                 <button onclick="closeDateModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
                     <i data-lucide="x" class="w-4 h-4"></i>
@@ -413,7 +564,7 @@
             <div class="space-y-3">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1" id="modalTopicTitle">Topik & Bab</label>
-                    <input type="date" id="modalDatePicker" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                    <input type="date" id="modalDatePicker" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 focus:outline-none font-medium">
                 </div>
 
                 <div class="flex gap-2">
@@ -447,7 +598,7 @@
             </div>
 
             <div class="text-xs text-slate-600 space-y-2">
-                <p>Data anda disimpan secara automatik dalam simpanan tempatan peranti (LocalStorage). Untuk menyemak dari peranti lain (seperti telefon/tablet/PC lain), aktifkan penyelarasan Firebase.</p>
+                <p>Data hafalan dikemaskini secara langsung melalui pangkalan data awan (Firebase Firestore). Guru dan pelajar dari peranti berbeza akan melihat kemaskini yang sama secara automatik.</p>
                 <div class="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-amber-800 flex gap-2 items-start">
                     <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5 text-amber-600"></i>
                     <span>Eksport atau simpan fail sandaran JSON jika anda mahu memindahkan data secara manual tanpa talian.</span>
@@ -457,9 +608,9 @@
             <div class="space-y-3 pt-2">
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">Status Pangkalan Data</label>
-                    <div id="syncStatusBadge" class="p-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium border border-emerald-200 flex items-center gap-2">
+                    <div id="syncStatusBadge" class="p-2.5 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-medium border border-emerald-200 flex items-center gap-2">
                         <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
-                        <span>Sedang Menggunakan LocalStorage (+ Auto Backup)</span>
+                        <span id="syncModalStatusText">Penyelarasan Awan Aktif (Realtime Firestore)</span>
                     </div>
                 </div>
 
@@ -478,7 +629,7 @@
             </div>
 
             <div class="flex justify-between items-center pt-3 border-t border-slate-100">
-                <button onclick="resetDataToDefault()" class="text-xs text-rose-600 hover:underline">Reset Data Asal</button>
+                <button onclick="resetDataToDefault()" class="text-xs text-rose-600 hover:underline font-medium">Reset Data Asal</button>
                 <button onclick="closeSyncModal()" class="px-4 py-1.5 text-xs bg-slate-800 text-white font-semibold rounded-lg hover:bg-slate-900 transition">Tutup</button>
             </div>
         </div>
@@ -488,14 +639,15 @@
     <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none no-print"></div>
 
     <script>
-        // State variables
+        // Global Application State
         let students = [...INITIAL_STUDENTS];
         let currentStudentId = "std_1";
         let activeFilter = "all"; // all, completed, pending
         let currentView = "single"; // single, overview
+        let userRole = "student"; // student, teacher
 
         // Storage schema: { studentId: { chapterId_colId: "YYYY-MM-DD" | true } }
-        let memorizationData = {};
+        window.memorizationData = {};
 
         // Active modal edit state
         let activeEditCell = null; // { studentId, chapterId, colId }
@@ -504,39 +656,74 @@
         window.onload = function() {
             lucide.createIcons();
             loadSavedData();
+            renderAllViews();
+        };
+
+        window.renderAllViews = function() {
             renderStudentList();
             renderMatrixTable();
             renderOverviewTable();
             updateHeaderStats();
+            updateKPIStats();
+            lucide.createIcons();
         };
+
+        // User Role Switcher
+        function setUserRole(role) {
+            userRole = role;
+            const studentBtn = document.getElementById('roleStudentBtn');
+            const teacherBtn = document.getElementById('roleTeacherBtn');
+            const roleBadge = document.getElementById('userRoleBadge');
+
+            if (role === 'teacher') {
+                studentBtn.className = "px-2.5 py-1 rounded-md transition flex items-center gap-1 text-slate-600 hover:text-slate-900";
+                teacherBtn.className = "px-2.5 py-1 rounded-md transition flex items-center gap-1 bg-white text-slate-800 shadow-xs font-bold";
+                if (roleBadge) {
+                    roleBadge.innerText = "Mod Guru / Penilai";
+                    roleBadge.className = "text-[10px] bg-mint-50 text-mint-700 border border-mint-200 px-2 py-0.5 rounded-full font-bold";
+                }
+                showToast("Ditukar ke Mod Guru / Tasmik", "info");
+            } else {
+                teacherBtn.className = "px-2.5 py-1 rounded-md transition flex items-center gap-1 text-slate-600 hover:text-slate-900";
+                studentBtn.className = "px-2.5 py-1 rounded-md transition flex items-center gap-1 bg-white text-slate-800 shadow-xs font-bold";
+                if (roleBadge) {
+                    roleBadge.innerText = "Mod Pelajar";
+                    roleBadge.className = "text-[10px] bg-brand-50 text-brand-700 border border-brand-200 px-2 py-0.5 rounded-full font-bold";
+                }
+                showToast("Ditukar ke Mod Pelajar", "info");
+            }
+        }
 
         // Local Storage / Persistence
         function loadSavedData() {
             try {
                 const stored = localStorage.getItem('fiqh_muamalat_hafalan_data');
                 if (stored) {
-                    memorizationData = JSON.parse(stored);
+                    window.memorizationData = JSON.parse(stored);
                 } else {
-                    // Seed empty data structure
-                    memorizationData = {};
+                    window.memorizationData = {};
                 }
             } catch (e) {
                 console.error("Failed to load local data", e);
-                memorizationData = {};
+                window.memorizationData = {};
             }
         }
 
         function saveCurrentData(showToastNotice = false) {
             try {
-                localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(memorizationData));
+                localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(window.memorizationData));
                 localStorage.setItem('fiqh_muamalat_last_updated', new Date().toISOString());
                 
+                // Sync to Cloud if Firebase connected
+                if (window.saveDataToCloud) {
+                    window.saveDataToCloud(window.memorizationData);
+                }
+
                 if (showToastNotice) {
                     showToast("Rekod hafalan berjaya disimpan!", "success");
                 }
                 
-                updateHeaderStats();
-                if (currentView === 'overview') renderOverviewTable();
+                renderAllViews();
             } catch (e) {
                 console.error("Save error:", e);
                 showToast("Ralat ketika menyimpan data.", "error");
@@ -561,6 +748,7 @@
 
         function renderStudentList(query = '') {
             const listEl = document.getElementById('studentList');
+            if (!listEl) return;
             listEl.innerHTML = '';
 
             const filtered = students.filter(s => s.name.toLowerCase().includes(query));
@@ -608,7 +796,7 @@
         }
 
         function calculateStudentProgress(studentId) {
-            const studentRecords = memorizationData[studentId] || {};
+            const studentRecords = window.memorizationData[studentId] || {};
             let completed = 0;
 
             CURRICULUM.chapters.forEach(ch => {
@@ -636,6 +824,31 @@
             const avg = students.length > 0 ? Math.round(totalPctSum / students.length) : 0;
             document.getElementById('classAveragePct').innerText = `${avg}%`;
             document.getElementById('classAverageBar').style.width = `${avg}%`;
+        }
+
+        function updateKPIStats() {
+            let totalPctSum = 0;
+            let totalMemorizedItemsSum = 0;
+            let completedCount = 0;
+            let topStudent = { name: "--", pct: -1 };
+
+            students.forEach(s => {
+                const stats = calculateStudentProgress(s.id);
+                totalPctSum += stats.pct;
+                totalMemorizedItemsSum += stats.completed;
+                if (stats.pct === 100) completedCount++;
+
+                if (stats.pct > topStudent.pct) {
+                    topStudent = { name: s.name, pct: stats.pct };
+                }
+            });
+
+            const avgPct = students.length > 0 ? Math.round(totalPctSum / students.length) : 0;
+            
+            document.getElementById('kpiClassAverage').innerText = `${avgPct}%`;
+            document.getElementById('kpiTotalMemorized').innerText = `${totalMemorizedItemsSum} / ${totalMandatoryItems * students.length}`;
+            document.getElementById('kpiCompletedStudents').innerText = `${completedCount} / ${students.length}`;
+            document.getElementById('kpiTopStudent').innerText = topStudent.pct > 0 ? `${topStudent.name.split(' ')[0]} (${topStudent.pct}%)` : '--';
         }
 
         function updateHeaderStats() {
@@ -670,9 +883,10 @@
         // Rendering Matrix Table
         function renderMatrixTable() {
             const tbody = document.getElementById('matrixTableBody');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
-            const studentRecords = memorizationData[currentStudentId] || {};
+            const studentRecords = window.memorizationData[currentStudentId] || {};
 
             CURRICULUM.chapters.forEach(ch => {
                 const row = document.createElement('tr');
@@ -681,7 +895,7 @@
                 let rowHtml = `
                     <td class="p-3 pl-4 font-semibold text-slate-800">
                         <div class="text-xs font-bold text-slate-800">${ch.nameMalay}</div>
-                        <div class="font-arabic text-xs text-brand-700 font-medium">${ch.nameArabic}</div>
+                        <div class="font-arabic text-xs text-brand-700 font-bold mt-0.5">${ch.nameArabic}</div>
                     </td>
                 `;
 
@@ -700,9 +914,9 @@
                         // EXEMPT / NOT REQUIRED ('X') -> Greyed out & Disabled
                         rowHtml += `
                             <td class="p-2 text-center border-l border-slate-100 bg-slate-100/70 select-none">
-                                <div class="inline-flex items-center justify-center w-full h-10 rounded-lg bg-slate-200/50 border border-slate-200 text-slate-400 cursor-not-allowed text-[11px] font-medium gap-1" title="Tidak Perlu Hafal (Dikecualikan)">
-                                    <i data-lucide="x" class="w-3.5 h-3.5 text-slate-400"></i>
-                                    <span class="hidden sm:inline text-[10px] text-slate-400">Tidak Perlu</span>
+                                <div class="inline-flex items-center justify-center w-full h-10 rounded-lg bg-slate-200/50 border border-slate-200/60 text-slate-400 cursor-not-allowed text-[11px] font-medium gap-1" title="Tidak Wajib Hafal (Dikecualikan)">
+                                    <i data-lucide="lock" class="w-3.5 h-3.5 text-slate-400"></i>
+                                    <span class="hidden sm:inline text-[10px] text-slate-400">Tidak Wajib</span>
                                 </div>
                             </td>
                         `;
@@ -724,13 +938,13 @@
                                 </td>
                             `;
                         } else {
-                            // Pending mandatory state
+                            // Pending mandatory state (Red cross icon badge)
                             rowHtml += `
                                 <td class="p-2 text-center border-l border-slate-100">
                                     <button onclick="openDateModal('${currentStudentId}', '${ch.id}', '${colId}', '${ch.nameMalay} - ${col.nameMalay}')" 
-                                        class="w-full h-10 px-2 rounded-lg bg-white hover:bg-brand-50/60 border border-slate-200 hover:border-brand-300 text-slate-400 hover:text-brand-600 transition flex items-center justify-center gap-1.5 group">
-                                        <i data-lucide="circle" class="w-4 h-4 text-slate-300 group-hover:text-brand-500"></i>
-                                        <span class="text-[11px] font-medium hidden sm:inline">Wajib</span>
+                                        class="w-full h-10 px-2 rounded-lg bg-rose-50/50 hover:bg-rose-100/80 border border-rose-200 text-rose-600 hover:text-rose-700 transition flex items-center justify-center gap-1.5 group">
+                                        <i data-lucide="x" class="w-4 h-4 text-rose-400 group-hover:text-rose-600"></i>
+                                        <span class="text-[11px] font-medium hidden sm:inline">Belum</span>
                                     </button>
                                 </td>
                             `;
@@ -751,7 +965,7 @@
             document.getElementById('modalTopicTitle').innerText = topicName;
             
             const key = `${chapterId}_${colId}`;
-            const existingVal = (memorizationData[studentId] || {})[key];
+            const existingVal = (window.memorizationData[studentId] || {})[key];
 
             const datePicker = document.getElementById('modalDatePicker');
             if (typeof existingVal === 'string' && existingVal.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -780,16 +994,14 @@
             const { studentId, chapterId, colId } = activeEditCell;
             const selectedDate = document.getElementById('modalDatePicker').value || new Date().toISOString().split('T')[0];
 
-            if (!memorizationData[studentId]) {
-                memorizationData[studentId] = {};
+            if (!window.memorizationData[studentId]) {
+                window.memorizationData[studentId] = {};
             }
 
             const key = `${chapterId}_${colId}`;
-            memorizationData[studentId][key] = selectedDate;
+            window.memorizationData[studentId][key] = selectedDate;
 
             saveCurrentData(false);
-            renderStudentList();
-            renderMatrixTable();
             closeDateModal();
             showToast("Tarikh hafalan berjaya direkodkan!", "success");
         }
@@ -798,14 +1010,12 @@
             if (!activeEditCell) return;
             const { studentId, chapterId, colId } = activeEditCell;
 
-            if (memorizationData[studentId]) {
+            if (window.memorizationData[studentId]) {
                 const key = `${chapterId}_${colId}`;
-                delete memorizationData[studentId][key];
+                delete window.memorizationData[studentId][key];
             }
 
             saveCurrentData(false);
-            renderStudentList();
-            renderMatrixTable();
             closeDateModal();
             showToast("Status hafalan dibatalkan.", "info");
         }
@@ -815,10 +1025,12 @@
             activeFilter = type;
             ['All', 'Completed', 'Pending'].forEach(t => {
                 const btn = document.getElementById(`filter${t}`);
-                if (t.toLowerCase() === type) {
-                    btn.className = "px-2.5 py-1 rounded-md font-medium bg-white text-slate-800 shadow-xs";
-                } else {
-                    btn.className = "px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900";
+                if (btn) {
+                    if (t.toLowerCase() === type) {
+                        btn.className = "px-2.5 py-1 rounded-md font-medium bg-white text-slate-800 shadow-xs";
+                    } else {
+                        btn.className = "px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900";
+                    }
                 }
             });
             renderMatrixTable();
@@ -845,18 +1057,19 @@
 
         function renderOverviewTable() {
             const tbody = document.getElementById('overviewTableBody');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             students.forEach(std => {
                 const stats = calculateStudentProgress(std.id);
-                const studentRecords = memorizationData[std.id] || {};
+                const studentRecords = window.memorizationData[std.id] || {};
 
                 const row = document.createElement('tr');
                 row.className = "hover:bg-slate-50 transition border-b border-slate-100";
 
                 let rowHtml = `
                     <td class="p-3 pl-4 font-semibold text-slate-800 sticky left-0 bg-white shadow-2xs z-10">
-                        <button onclick="selectStudent('${std.id}')" class="text-left hover:text-brand-600 font-bold text-xs truncate max-w-[200px] block">
+                        <button onclick="selectStudent('${std.id}')" class="text-left hover:text-brand-600 font-bold text-xs truncate max-w-[190px] block">
                             ${std.name}
                         </button>
                     </td>
@@ -866,7 +1079,6 @@
                 `;
 
                 CURRICULUM.chapters.forEach(ch => {
-                    // Count how many mandatory sub-items are completed for this chapter
                     let chMandatoryCount = 0;
                     let chCompletedCount = 0;
 
@@ -911,7 +1123,7 @@
         }
 
         function exportDataJSON() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(memorizationData, null, 2));
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.memorizationData, null, 2));
             const downloadAnchor = document.createElement('a');
             downloadAnchor.setAttribute("href", dataStr);
             downloadAnchor.setAttribute("download", `Fiqh_Muamalat_Hafalan_${new Date().toISOString().split('T')[0]}.json`);
@@ -930,11 +1142,8 @@
                 try {
                     const parsed = JSON.parse(e.target.result);
                     if (typeof parsed === 'object') {
-                        memorizationData = parsed;
+                        window.memorizationData = parsed;
                         saveCurrentData(false);
-                        renderStudentList();
-                        renderMatrixTable();
-                        updateHeaderStats();
                         showToast("Data berjaya diimport!", "success");
                         closeSyncModal();
                     } else {
@@ -948,12 +1157,9 @@
         }
 
         function resetDataToDefault() {
-            if (confirm("Adakah anda pasti untuk menderetkan semula semua rekod hafalan? Action ini tidak boleh diundur.")) {
-                memorizationData = {};
+            if (confirm("Adakah anda pasti untuk menderetkan semula semua rekod hafalan? Tindakan ini tidak boleh diundur.")) {
+                window.memorizationData = {};
                 saveCurrentData(false);
-                renderStudentList();
-                renderMatrixTable();
-                updateHeaderStats();
                 closeSyncModal();
                 showToast("Data telah ditetapkan semula.", "info");
             }
@@ -967,6 +1173,7 @@
         // Toast Notifications
         function showToast(message, type = 'info') {
             const container = document.getElementById('toastContainer');
+            if (!container) return;
             const toast = document.createElement('div');
 
             const bgClass = type === 'success' ? 'bg-emerald-800 text-white' : type === 'error' ? 'bg-rose-800 text-white' : 'bg-slate-800 text-white';
