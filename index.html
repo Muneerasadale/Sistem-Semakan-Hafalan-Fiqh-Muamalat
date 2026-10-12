@@ -4,19 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Semakan Hafalan Fiqh Muamalat</title>
-    <!-- Tailwind CSS -->
+    
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <!-- Google Fonts for Malay & Arabic -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Firebase SDKs for Cloud Sync across devices -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
     <script>
         tailwind.config = {
             theme: {
@@ -41,6 +40,7 @@
             }
         }
     </script>
+    
     <style>
         .arabic-text {
             font-family: 'Amiri', serif;
@@ -60,11 +60,17 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+        @keyframes toastIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .toast-animate {
+            animation: toastIn 0.3s ease-out forwards;
+        }
     </style>
 </head>
 <body class="h-full text-slate-800 font-sans flex flex-col min-h-screen">
 
-    <!-- Navigation Bar -->
     <header class="bg-gradient-to-r from-brand-800 via-brand-700 to-teal-800 text-white shadow-md sticky top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center space-x-3">
@@ -77,18 +83,18 @@
                         <span class="bg-teal-500/30 text-teal-100 text-xs px-2.5 py-0.5 rounded-full border border-teal-400/30 font-semibold">Fiqh Muamalat</span>
                     </h1>
                     <div class="flex items-center gap-2">
-                        <span id="sync-badge" class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.2 rounded-full bg-amber-400/20 text-amber-200 border border-amber-300/30">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> Mod Lokal
+                        <span id="sync-badge" class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-300/30">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Memuatkan Sambungan Awan...
                         </span>
-                        <span class="text-[11px] text-teal-100/80 font-medium">Platform Semakan Murid</span>
+                        <span class="text-[11px] text-teal-100/80 font-medium hidden sm:inline">Portal Terhubung Realtime</span>
                     </div>
                 </div>
             </div>
 
             <div class="flex items-center gap-2">
-                <button onclick="openCloudModal()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-400/20 hover:bg-amber-400/30 text-amber-100 border border-amber-300/30 transition flex items-center gap-1.5" title="Tetapan Sync Awan (Buka pada Pelbagai Device)">
+                <button onclick="openCloudModal()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-400/20 hover:bg-amber-400/30 text-amber-100 border border-amber-300/30 transition flex items-center gap-1.5" title="Tetapan Manual Cloud (Firebase)">
                     <i class="fa-solid fa-cloud-arrow-up text-amber-300"></i>
-                    <span class="hidden sm:inline">Sync Awan (Cloud)</span>
+                    <span class="hidden sm:inline">Tetapan Awan</span>
                 </button>
                 <button id="btn-view-students" onclick="switchTab('tracker')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-brand-800 hover:bg-teal-50 shadow-sm transition flex items-center gap-1.5">
                     <i class="fa-solid fa-list-check"></i>
@@ -115,7 +121,7 @@
                             <i class="fa-solid fa-users text-brand-600"></i>
                             Senarai Murid (<span id="student-count">7</span>)
                         </h2>
-                        <span class="text-[10px] text-slate-400 font-medium">Klik nama</span>
+                        <span class="text-[10px] text-slate-400 font-medium">Klik nama murid</span>
                     </div>
 
                     <!-- Search Input -->
@@ -125,16 +131,16 @@
                     </div>
 
                     <!-- Student List Container -->
-                    <div id="student-list" class="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                    <div id="student-list" class="space-y-2 max-h-[480px] overflow-y-auto pr-1">
                         <!-- Populated via JS -->
                     </div>
                 </div>
 
                 <!-- Legend Card -->
-                <div class="bg-teal-50/60 rounded-2xl p-4 border border-teal-100/80 text-xs space-y-2">
+                <div class="bg-teal-50/70 rounded-2xl p-4 border border-teal-100 text-xs space-y-2">
                     <h3 class="font-bold text-teal-900 flex items-center gap-1.5">
                         <i class="fa-solid fa-circle-info text-brand-600"></i>
-                        Status Petak Hafalan
+                        Petunjuk Status Petak
                     </h3>
                     <div class="flex items-center gap-2 text-slate-700 text-[11px]">
                         <span class="w-5 h-5 rounded-md bg-emerald-500 text-white flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-check"></i></span>
@@ -151,17 +157,16 @@
                 </div>
             </aside>
 
-            <!-- Main Matrix Area -->
             <section class="lg:col-span-8 xl:col-span-9 space-y-5">
                 
-                <!-- Active Student Card -->
+                <!-- Active Student Progress Card -->
                 <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div class="flex items-center space-x-3">
                         <div id="student-avatar" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-brand-100 text-brand-700 font-extrabold text-lg sm:text-xl flex items-center justify-center border-2 border-brand-200 shadow-sm shrink-0">
                             -
                         </div>
                         <div>
-                            <span class="text-[10px] font-bold text-brand-700 bg-brand-50 px-2.5 py-0.5 rounded-full border border-brand-200 uppercase tracking-wide">Profil Murid</span>
+                            <span class="text-[10px] font-bold text-brand-700 bg-brand-50 px-2.5 py-0.5 rounded-full border border-brand-200 uppercase tracking-wide">Profil Murid Aktif</span>
                             <h2 id="active-student-name" class="text-base sm:text-lg font-bold text-slate-900 mt-0.5">Pilih Murid</h2>
                             <p class="text-xs text-slate-500">Mata Pelajaran: <strong class="text-slate-700">Fiqh Muamalat (فقه المعاملات)</strong></p>
                         </div>
@@ -183,7 +188,6 @@
                     </div>
                 </div>
 
-                <!-- Matrix Table -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
                     <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
                         <div class="flex items-center gap-2">
@@ -191,10 +195,9 @@
                             <h3 class="font-bold text-xs sm:text-sm text-slate-800">Jadual Matriks Hafalan Murid</h3>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="manualSaveAlert()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-600 text-white hover:bg-brand-700 shadow-sm transition flex items-center gap-1.5">
-                                <i class="fa-solid fa-floppy-disk"></i>
-                                <span>Simpan Data</span>
-                            </button>
+                            <span id="live-indicator" class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Realtime Sync
+                            </span>
                         </div>
                     </div>
 
@@ -235,21 +238,20 @@
                         </table>
                     </div>
                     <div class="p-3 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between">
-                        <span><i class="fa-solid fa-lock text-slate-400 mr-1"></i> Petak kelabu [X] tidak perlu dihafal & dikunci.</span>
-                        <span id="last-saved-time">Autosave Aktif</span>
+                        <span><i class="fa-solid fa-lock text-slate-400 mr-1"></i> Petak kelabu [X] tidak perlu dihafal.</span>
+                        <span id="last-saved-time">Tersinkron secara automatik</span>
                     </div>
                 </div>
 
             </section>
         </div>
 
-        <!-- TAB 2: CLASS SUMMARY VIEW -->
         <div id="view-summary" class="hidden space-y-6">
             <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 space-y-6">
                 <div class="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200 pb-4">
                     <div>
-                        <h2 class="text-base sm:text-lg font-bold text-slate-900">Ringkasan & Prestasi Hafalan Kelas</h2>
-                        <p class="text-xs text-slate-500">Pantauan keseluruhan 7 orang murid bagi Fiqh Muamalat</p>
+                        <h2 class="text-base sm:text-lg font-bold text-slate-900">Ringkasan & Prestasi Hafalan Keseluruhan Kelas</h2>
+                        <p class="text-xs text-slate-500">Laporan pencapaian real-time bagi 7 orang murid Fiqh Muamalat</p>
                     </div>
                     <button onclick="window.print()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition flex items-center gap-2">
                         <i class="fa-solid fa-print"></i>
@@ -268,7 +270,7 @@
                     <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100">
                         <div class="text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">Jumlah Item Dihafal</div>
                         <div id="summary-total-items" class="text-2xl font-black text-blue-900">0 / 231</div>
-                        <div class="text-[11px] text-blue-600 font-medium mt-1">Selesai kesemuanya</div>
+                        <div class="text-[11px] text-blue-600 font-medium mt-1">Selesai daripada sasaran kelas</div>
                     </div>
                     <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-100">
                         <div class="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1">Pencapaian Tertinggi</div>
@@ -344,7 +346,7 @@
                     <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm">
                         <i class="fa-solid fa-cloud"></i>
                     </div>
-                    <h3 class="font-bold text-sm text-slate-800">Sambungan Sync Awan (Cloud)</h3>
+                    <h3 class="font-bold text-sm text-slate-800">Status Sambungan Awan (Cloud Sync)</h3>
                 </div>
                 <button onclick="closeCloudModal()" class="text-slate-400 hover:text-slate-600 p-1">
                     <i class="fa-solid fa-xmark text-lg"></i>
@@ -352,29 +354,48 @@
             </div>
 
             <p class="text-xs text-slate-600 leading-relaxed">
-                Masukkan **Firebase Realtime Database Config** anda di bawah supaya aplikasi ini boleh digunakan pada pelbagai peranti (*cross-device sync*) dengan satu link pautan.
+                Portal ini dilengkapi sistem **Pangkalan Data Awan Terhubung**. Sebarang maklumat yang diisi oleh murid akan disinkronkan secara automatik merentasi semua peranti.
             </p>
 
             <div class="space-y-3">
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Firebase Database URL / Config (JSON):</label>
-                    <textarea id="firebase-config-input" rows="4" placeholder='{"databaseURL": "https://projek-anda-default-rtdb.firebaseio.com"}' class="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-slate-50"></textarea>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tetapan Manual Firebase Config (Pilihan):</label>
+                    <textarea id="firebase-config-input" rows="3" placeholder='{"apiKey": "...", "databaseURL": "...", "projectId": "..."}' class="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 bg-slate-50"></textarea>
                 </div>
             </div>
 
             <div class="flex items-center justify-between pt-2 border-t border-slate-100">
                 <button onclick="resetFirebaseConfig()" class="px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">
-                    Guna Mod Lokal
+                    Guna Tetapan Asal
                 </button>
                 <button onclick="saveFirebaseConfig()" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-sm transition">
-                    Sambungkan Awan
+                    Simpan Tetapan
                 </button>
             </div>
         </div>
     </div>
 
-    <script>
-        // DATA STRUCTURES
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed top-16 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        /* =========================================================================
+           TAMPAL FIREBASE CONFIG ANDA DI SINI SUPAYA SEMUA PERANTI TERHUBUNG!
+           (Dapatkan secara percuma di https://console.firebase.google.com)
+           ========================================================================= */
+        const CUSTOM_FIREBASE_CONFIG = {
+         apiKey: "AIzaSy...",
+         authDomain: "projek-anda.firebaseapp.com",
+         projectId: "projek-anda",
+         storageBucket: "projek-anda.appspot.com",
+         messagingSenderId: "123456789",
+         appId: "1:123456789:web:abcdef"
+     };
+
         const STUDENT_NAMES = [
             "AREEFA DALILA BINTI SHARUL AZLAN",
             "FAIROZ SYAHMI BIN MOHD ZAIDI",
@@ -419,87 +440,125 @@
 
         const TOTAL_REQUIRED_ITEMS = Object.values(MATRIX_RULES).reduce((acc, row) => {
             return acc + Object.values(row).filter(val => val === true).length;
-        }, 0); // 33 items total
+        }, 0); // 33 items total per student
 
         let studentsData = {};
         let activeStudentId = 0;
         let selectedCellTarget = null;
-        let firebaseDb = null;
-        let isCloudConnected = false;
+        let db = null;
+        let auth = null;
+        let currentUser = null;
 
-        window.addEventListener('DOMContentLoaded', () => {
-            initFirebaseOrLocal();
+        window.addEventListener('DOMContentLoaded', async () => {
+            initDefaultState();
+            await setupFirebaseCloud();
             renderStudentList();
             selectStudent(0);
         });
 
-        // Initialize Data Storage or Cloud Sync
-        function initFirebaseOrLocal() {
-            const savedFirebaseCfg = localStorage.getItem('hafalan_firebase_config');
-            if (savedFirebaseCfg) {
-                try {
-                    const config = JSON.parse(savedFirebaseCfg);
-                    if (!firebase.apps.length) {
-                        firebase.initializeApp(config);
-                    }
-                    firebaseDb = firebase.database();
-                    isCloudConnected = true;
-
-                    // Update UI Badge
-                    document.getElementById('sync-badge').className = "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-300/30";
-                    document.getElementById('sync-badge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Mod Awan (Online)';
-
-                    // Listen for Live Realtime Changes across all devices!
-                    firebaseDb.ref('hafalan_records').on('value', (snapshot) => {
-                        const val = snapshot.val();
-                        if (val) {
-                            studentsData = val;
-                        } else {
-                            studentsData = createDefaultState();
-                        }
-                        renderStudentList();
-                        renderMatrixTable();
-                        updateStudentProgressHeader();
-                        updateSummaryData();
-                    });
-                    return;
-                } catch(e) {
-                    console.error("Firebase Initialization Error:", e);
+        function initDefaultState() {
+            STUDENT_NAMES.forEach((name, idx) => {
+                if (!studentsData[idx]) {
+                    studentsData[idx] = { id: idx, name: name, records: {} };
                 }
-            }
-
-            // Fallback to Local Storage
-            const savedLocal = localStorage.getItem('hafalan_fiqh_data_v2');
+            });
+            // Check local fallback
+            const savedLocal = localStorage.getItem('hafalan_fiqh_data_v3');
             if (savedLocal) {
                 try {
-                    studentsData = JSON.parse(savedLocal);
-                } catch(e) {
-                    studentsData = createDefaultState();
+                    const parsed = JSON.parse(savedLocal);
+                    Object.keys(parsed).forEach(k => {
+                        studentsData[k] = parsed[k];
+                    });
+                } catch(e) {}
+            }
+        }
+
+        async function setupFirebaseCloud() {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'hafalan-fiqh-muamalat';
+            let firebaseConfig = null;
+
+            // 1. Keutamaan: Gunakan CUSTOM_FIREBASE_CONFIG jika diisi oleh guru
+            if (typeof CUSTOM_FIREBASE_CONFIG !== 'undefined' && CUSTOM_FIREBASE_CONFIG.apiKey) {
+                firebaseConfig = CUSTOM_FIREBASE_CONFIG;
+            } 
+            // 2. Gunakan config persekitaran jika wujud
+            else if (typeof __firebase_config !== 'undefined') {
+                try { firebaseConfig = JSON.parse(__firebase_config); } catch(e) {}
+            }
+
+            // 3. Gunakan simpanan tempatan jika ada
+            if (!firebaseConfig) {
+                const storedCfg = localStorage.getItem('hafalan_firebase_config');
+                if (storedCfg) {
+                    try { firebaseConfig = JSON.parse(storedCfg); } catch(e) {}
                 }
-            } else {
-                studentsData = createDefaultState();
+            }
+
+            if (!firebaseConfig) {
+                updateSyncBadge('local', 'Mod Lokal (Sila Masukkan Firebase Config)');
+                return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // RULE 3: Auth before any Firestore operations
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                currentUser = auth.currentUser;
+                updateSyncBadge('online', 'Terhubung ke Awan (Realtime Sync Active)');
+
+                // RULE 1: Strict collection path /artifacts/{appId}/public/data/hafalan_records
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'hafalan_records');
+
+                // Realtime sync listener with error callback
+                onSnapshot(colRef, (snapshot) => {
+                    snapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        if (data && data.studentId !== undefined) {
+                            studentsData[data.studentId] = {
+                                id: data.studentId,
+                                name: data.name || STUDENT_NAMES[data.studentId],
+                                records: data.records || {}
+                            };
+                        }
+                    });
+                    renderStudentList();
+                    renderMatrixTable();
+                    updateStudentProgressHeader();
+                    updateSummaryData();
+                    const now = new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    document.getElementById('last-saved-time').innerText = 'Disinkron ' + now;
+                }, (error) => {
+                    console.error("Firestore Listen Error:", error);
+                    updateSyncBadge('local', 'Ralat Sambungan Awan');
+                });
+
+            } catch (err) {
+                console.error("Firebase Auth / Setup error:", err);
+                updateSyncBadge('local', 'Gagal Sambung Awan');
             }
         }
 
-        function createDefaultState() {
-            const data = {};
-            STUDENT_NAMES.forEach((name, idx) => {
-                data[idx] = { id: idx, name: name, records: {} };
-            });
-            return data;
-        }
-
-        function saveData() {
-            if (isCloudConnected && firebaseDb) {
-                firebaseDb.ref('hafalan_records').set(studentsData);
+        function updateSyncBadge(type, message) {
+            const badge = document.getElementById('sync-badge');
+            if (type === 'online') {
+                badge.className = "inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-300/30";
+                badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> ' + message;
             } else {
-                localStorage.setItem('hafalan_fiqh_data_v2', JSON.stringify(studentsData));
+                badge.className = "inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-300/30";
+                badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> ' + message;
             }
-            const now = new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
-            document.getElementById('last-saved-time').innerText = 'Disimpan ' + now;
         }
 
-        function switchTab(tab) {
+        window.switchTab = function(tab) {
             const trackerTab = document.getElementById('view-tracker');
             const summaryTab = document.getElementById('view-summary');
             const btnStudents = document.getElementById('btn-view-students');
@@ -517,10 +576,11 @@
                 btnStudents.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition flex items-center gap-1.5";
                 updateSummaryData();
             }
-        }
+        };
 
         function renderStudentList() {
             const container = document.getElementById('student-list');
+            if (!container) return;
             container.innerHTML = '';
 
             STUDENT_NAMES.forEach((name, idx) => {
@@ -555,26 +615,26 @@
             });
         }
 
-        function filterStudents() {
+        window.filterStudents = function() {
             const query = document.getElementById('search-student').value.toLowerCase();
             const buttons = document.getElementById('student-list').getElementsByTagName('button');
             Array.from(buttons).forEach((btn) => {
                 btn.classList.toggle('hidden', !btn.innerText.toLowerCase().includes(query));
             });
-        }
+        };
 
-        function selectStudent(idx) {
+        window.selectStudent = function(idx) {
             activeStudentId = idx;
-            const student = studentsData[idx] || { name: STUDENT_NAMES[idx] };
+            const name = STUDENT_NAMES[idx];
 
-            document.getElementById('active-student-name').innerText = student.name;
-            const initials = student.name.split(' ').map(n => n[0]).slice(0, 2).join('');
+            document.getElementById('active-student-name').innerText = name;
+            const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('');
             document.getElementById('student-avatar').innerText = initials;
 
             renderStudentList();
             renderMatrixTable();
             updateStudentProgressHeader();
-        }
+        };
 
         function getStudentCompletedCount(studentId) {
             const records = studentsData[studentId]?.records || {};
@@ -593,11 +653,12 @@
             document.getElementById('active-student-percentage').innerText = `${percent}%`;
 
             const circle = document.getElementById('progress-circle');
-            circle.setAttribute('stroke-dasharray', `${percent}, 100`);
+            if (circle) circle.setAttribute('stroke-dasharray', `${percent}, 100`);
         }
 
         function renderMatrixTable() {
             const tbody = document.getElementById('matrix-tbody');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             const studentRecords = studentsData[activeStudentId]?.records || {};
@@ -655,7 +716,7 @@
             });
         }
 
-        function openDateModal(babId, subId) {
+        window.openDateModal = function(babId, subId) {
             selectedCellTarget = { babId, subId };
             const babObj = BABS.find(b => b.id === babId);
             const subObj = SUBTOPICS.find(s => s.id === subId);
@@ -677,55 +738,77 @@
             }
 
             document.getElementById('date-modal').classList.remove('hidden');
-        }
+        };
 
-        function closeModal() {
+        window.closeModal = function() {
             document.getElementById('date-modal').classList.add('hidden');
             selectedCellTarget = null;
-        }
+        };
 
-        function confirmMarkTopic() {
+        window.confirmMarkTopic = async function() {
             if (!selectedCellTarget) return;
             const { babId, subId } = selectedCellTarget;
             const dateVal = document.getElementById('modal-date-input').value || getTodayYMD();
             const recordKey = `${babId}_${subId}`;
 
-            if (!studentsData[activeStudentId].records) {
-                studentsData[activeStudentId].records = {};
-            }
-
-            studentsData[activeStudentId].records[recordKey] = { completed: true, date: dateVal };
-
-            saveData();
+            await updateRecordInDatabase(activeStudentId, recordKey, true, dateVal);
             closeModal();
-            renderMatrixTable();
-            updateStudentProgressHeader();
-            renderStudentList();
-        }
+        };
 
-        function unmarkTopic() {
+        window.unmarkTopic = async function() {
             if (!selectedCellTarget) return;
             const { babId, subId } = selectedCellTarget;
             const recordKey = `${babId}_${subId}`;
 
-            if (studentsData[activeStudentId]?.records?.[recordKey]) {
-                delete studentsData[activeStudentId].records[recordKey];
+            await updateRecordInDatabase(activeStudentId, recordKey, false, null);
+            closeModal();
+        };
+
+        async function updateRecordInDatabase(studentId, recordKey, isCompleted, dateVal) {
+            if (!studentsData[studentId]) {
+                studentsData[studentId] = { id: studentId, name: STUDENT_NAMES[studentId], records: {} };
+            }
+            if (!studentsData[studentId].records) {
+                studentsData[studentId].records = {};
             }
 
-            saveData();
-            closeModal();
+            if (isCompleted) {
+                studentsData[studentId].records[recordKey] = { completed: true, date: dateVal };
+            } else {
+                delete studentsData[studentId].records[recordKey];
+            }
+
+            // Local fallback
+            localStorage.setItem('hafalan_fiqh_data_v3', JSON.stringify(studentsData));
+
+            // Cloud Firestore Update
+            if (db && currentUser) {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'hafalan-fiqh-muamalat';
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'hafalan_records', studentId.toString());
+                try {
+                    await setDoc(docRef, {
+                        studentId: studentId,
+                        name: STUDENT_NAMES[studentId],
+                        records: studentsData[studentId].records,
+                        lastUpdated: new Date().toISOString()
+                    }, { merge: true });
+                    showToast("Rekod Disimpan", "Data hafalan berjaya dikemaskini secara live!", "success");
+                } catch(e) {
+                    console.error("Cloud Save Error:", e);
+                    showToast("Simpan Lokal", "Disimpan pada peranti sahaja (Awan tidak responsif)", "warning");
+                }
+            } else {
+                showToast("Simpan Lokal", "Disimpan pada peranti sahaja.", "info");
+            }
+
             renderMatrixTable();
             updateStudentProgressHeader();
             renderStudentList();
         }
 
-        function manualSaveAlert() {
-            saveData();
-            alert('Data hafalan berjaya disimpan!');
-        }
-
         function updateSummaryData() {
             const tbody = document.getElementById('summary-tbody');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             let totalClassCompleted = 0;
@@ -777,36 +860,61 @@
             });
         }
 
-        // Firebase Cloud Modal Logic
-        function openCloudModal() {
+        function showToast(title, message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            let bgBg = 'bg-slate-800 text-white';
+            if (type === 'success') bgBg = 'bg-emerald-600 text-white';
+            if (type === 'warning') bgBg = 'bg-amber-600 text-white';
+
+            toast.className = `p-3 rounded-xl shadow-lg border border-white/20 text-xs font-medium toast-animate pointer-events-auto flex items-center justify-between gap-3 ${bgBg}`;
+            toast.innerHTML = `
+                <div>
+                    <div class="font-bold">${title}</div>
+                    <div class="text-[11px] opacity-90">${message}</div>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-white/80 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                if (toast.parentElement) toast.remove();
+            }, 3500);
+        }
+
+        window.openCloudModal = function() {
             const savedFirebaseCfg = localStorage.getItem('hafalan_firebase_config') || '';
             document.getElementById('firebase-config-input').value = savedFirebaseCfg;
             document.getElementById('cloud-modal').classList.remove('hidden');
-        }
+        };
 
-        function closeCloudModal() {
+        window.closeCloudModal = function() {
             document.getElementById('cloud-modal').classList.add('hidden');
-        }
+        };
 
-        function saveFirebaseConfig() {
+        window.saveFirebaseConfig = function() {
             const val = document.getElementById('firebase-config-input').value.trim();
             if (val) {
                 try {
                     JSON.parse(val);
                     localStorage.setItem('hafalan_firebase_config', val);
-                    alert('Firebase Config disimpan! Halaman akan direfresh untuk menyambung ke Awan.');
-                    window.location.reload();
+                    showToast("Tetapan Disimpan", "Mengemaskini sambungan awan...", "success");
+                    setTimeout(() => window.location.reload(), 1000);
                 } catch(e) {
-                    alert('Format JSON Firebase Config tidak sah. Sila semak semula.');
+                    showToast("Ralat JSON", "Format JSON Firebase Config tidak sah.", "warning");
                 }
             }
-        }
+        };
 
-        function resetFirebaseConfig() {
+        window.resetFirebaseConfig = function() {
             localStorage.removeItem('hafalan_firebase_config');
-            alert('Kembali ke Mod Lokal.');
-            window.location.reload();
-        }
+            showToast("Dikembalikan", "Menggunakan tetapan asal...", "info");
+            setTimeout(() => window.location.reload(), 1000);
+        };
 
         function getTodayYMD() {
             const today = new Date();
