@@ -49,12 +49,56 @@
             }
             body { background: white !important; color: black !important; padding: 0 !important; }
             .print-container { display: block !important; width: 100% !important; margin: 0 !important; }
+            .page-break { page-break-after: always; }
             table { border-collapse: collapse !important; width: 100% !important; }
             th, td { border: 1px solid #000 !important; padding: 6px 8px !important; font-size: 11px !important; }
         }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <script>
+        // Matriks kurikulum dibaiki ID selamat (tanpa simbol tanda petik)
+        const CURRICULUM = {
+            titleArabic: "فقه المعاملات",
+            titleMalay: "Fiqh Muamalat",
+            columns: [
+                { id: "takrif", nameMalay: "Takrif (Definisi)", nameArabic: "تعريف" },
+                { id: "dalil", nameMalay: "Dalil", nameArabic: "دليل" },
+                { id: "ahkam", nameMalay: "Ahkam (Hukum)", nameArabic: "أحكام" },
+                { id: "anwa", nameMalay: "Anwa' (Jenis)", nameArabic: "أنواع" },
+                { id: "arkan", nameMalay: "Arkan (Rukun)", nameArabic: "أركان" },
+                { id: "shurut", nameMalay: "Shurut (Syarat)", nameArabic: "شروط" }
+            ],
+            chapters: [
+                { id: "al_bai", nameMalay: "Al-Bai' (Jual Beli)", nameArabic: "البيع", requirements: { takrif: true, dalil: true, ahkam: false, anwa: true, arkan: true, shurut: true } },
+                { id: "al_riba", nameMalay: "Al-Riba", nameArabic: "الربا", requirements: { takrif: true, dalil: true, ahkam: true, anwa: true, arkan: false, shurut: true } },
+                { id: "al_khiyar", nameMalay: "Al-Khiyar", nameArabic: "الخيار", requirements: { takrif: false, dalil: false, ahkam: false, anwa: true, arkan: false, shurut: false } },
+                { id: "al_salam", nameMalay: "Al-Salam", nameArabic: "السلم", requirements: { takrif: true, dalil: true, ahkam: false, anwa: false, arkan: true, shurut: true } },
+                { id: "al_rahn", nameMalay: "Al-Rahn (Gadai)", nameArabic: "الرهن", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
+                { id: "al_dhaman", nameMalay: "Al-Dhaman (Jaminan)", nameArabic: "الضمان", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
+                { id: "al_wakalah", nameMalay: "Al-Wakalah (Wakil)", nameArabic: "الوكالة", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
+                { id: "al_qiradh", nameMalay: "Al-Qiradh (Pelaburan)", nameArabic: "القراض", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } }
+            ]
+        };
+
+        const INITIAL_STUDENTS = [
+            { id: "std_1", name: "AREEFA DALILA BINTI SHARUL AZLAN" },
+            { id: "std_2", name: "FAIROZ SYAHMI BIN MOHD ZAIDI" },
+            { id: "std_3", name: "MUIZ ZAMAN BIN MOHAMAD ZAKI" },
+            { id: "std_4", name: "NOR QAMIELIEYA BINTI AMRAN" },
+            { id: "std_5", name: "NUR AUNI SYAZWINA BINTI MOHD AZRIL" },
+            { id: "std_6", name: "NUR IZZATI UMAIRA BINTI ABDULLAH" },
+            { id: "std_7", name: "QAMIEYL IYQRAM ASZRIN BIN ABDULLAH" }
+        ];
+
+        let totalMandatoryItems = 0;
+        CURRICULUM.chapters.forEach(ch => {
+            Object.keys(ch.requirements).forEach(colId => {
+                if (ch.requirements[colId]) totalMandatoryItems++;
+            });
+        });
+    </script>
 
     <!-- Header App -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
@@ -121,9 +165,13 @@
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse min-w-[650px]">
                         <thead>
-                            <tr id="matrixTableHeader" class="bg-slate-100/80 border-b border-slate-200 text-slate-700 text-xs uppercase">
+                            <tr class="bg-slate-100/80 border-b border-slate-200 text-slate-700 text-xs uppercase">
                                 <th class="p-3 pl-4 font-bold">Bab / Topik</th>
-                                <!-- Tajuk kolum diisi menerusi JS -->
+                                <script>
+                                    CURRICULUM.columns.forEach(col => {
+                                        document.write(`<th class="p-3 text-center border-l border-slate-200">${col.nameMalay}</th>`);
+                                    });
+                                </script>
                             </tr>
                         </thead>
                         <tbody id="matrixTableBody" class="divide-y divide-slate-100 text-xs">
@@ -193,67 +241,16 @@
         </div>
     </div>
 
-    <!-- LOGIK JAVASCRIPT UTAMA (DILETAK DI BAHAGIAN BAWAH BODY) -->
+    <!-- Logik Pengaturcaraan Sistem -->
     <script>
-        const CURRICULUM = {
-            titleArabic: "فقه المعاملات",
-            titleMalay: "Fiqh Muamalat",
-            columns: [
-                { id: "takrif", nameMalay: "Takrif (Definisi)", nameArabic: "تعريف" },
-                { id: "dalil", nameMalay: "Dalil", nameArabic: "دليل" },
-                { id: "ahkam", nameMalay: "Ahkam (Hukum)", nameArabic: "أحكام" },
-                { id: "anwa", nameMalay: "Anwa' (Jenis)", nameArabic: "أنواع" },
-                { id: "arkan", nameMalay: "Arkan (Rukun)", nameArabic: "أركان" },
-                { id: "shurut", nameMalay: "Shurut (Syarat)", nameArabic: "شروط" }
-            ],
-            chapters: [
-                { id: "al_bai", nameMalay: "Al-Bai' (Jual Beli)", nameArabic: "البيع", requirements: { takrif: true, dalil: true, ahkam: false, anwa: true, arkan: true, shurut: true } },
-                { id: "al_riba", nameMalay: "Al-Riba", nameArabic: "الربا", requirements: { takrif: true, dalil: true, ahkam: true, anwa: true, arkan: false, shurut: true } },
-                { id: "al_khiyar", nameMalay: "Al-Khiyar", nameArabic: "الخيار", requirements: { takrif: false, dalil: false, ahkam: false, anwa: true, arkan: false, shurut: false } },
-                { id: "al_salam", nameMalay: "Al-Salam", nameArabic: "السلم", requirements: { takrif: true, dalil: true, ahkam: false, anwa: false, arkan: true, shurut: true } },
-                { id: "al_rahn", nameMalay: "Al-Rahn (Gadai)", nameArabic: "الرهن", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
-                { id: "al_dhaman", nameMalay: "Al-Dhaman (Jaminan)", nameArabic: "الضمان", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
-                { id: "al_wakalah", nameMalay: "Al-Wakalah (Wakil)", nameArabic: "الوكالة", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
-                { id: "al_qiradh", nameMalay: "Al-Qiradh (Pelaburan)", nameArabic: "القراض", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } }
-            ]
-        };
-
-        const INITIAL_STUDENTS = [
-            { id: "std_1", name: "AREEFA DALILA BINTI SHARUL AZLAN" },
-            { id: "std_2", name: "FAIROZ SYAHMI BIN MOHD ZAIDI" },
-            { id: "std_3", name: "MUIZ ZAMAN BIN MOHAMAD ZAKI" },
-            { id: "std_4", name: "NOR QAMIELIEYA BINTI AMRAN" },
-            { id: "std_5", name: "NUR AUNI SYAZWINA BINTI MOHD AZRIL" },
-            { id: "std_6", name: "NUR IZZATI UMAIRA BINTI ABDULLAH" },
-            { id: "std_7", name: "QAMIEYL IYQRAM ASZRIN BIN ABDULLAH" }
-        ];
-
-        let totalMandatoryItems = 0;
-        CURRICULUM.chapters.forEach(ch => {
-            Object.keys(ch.requirements).forEach(colId => {
-                if (ch.requirements[colId]) totalMandatoryItems++;
-            });
-        });
-
         let currentStudentId = "std_1";
         let activeTargetCell = null;
         window.memorizationData = JSON.parse(localStorage.getItem('fiqh_muamalat_hafalan_data')) || {};
 
         document.addEventListener('DOMContentLoaded', () => {
-            renderHeaderColumns();
             renderAllViews();
             if (window.lucide) window.lucide.createIcons();
         });
-
-        function renderHeaderColumns() {
-            const headerTr = document.getElementById('matrixTableHeader');
-            if (!headerTr) return;
-            let html = '<th class="p-3 pl-4 font-bold">Bab / Topik</th>';
-            CURRICULUM.columns.forEach(col => {
-                html += `<th class="p-3 text-center border-l border-slate-200">${col.nameMalay}</th>`;
-            });
-            headerTr.innerHTML = html;
-        }
 
         function renderAllViews() {
             renderStudentList();
@@ -274,7 +271,6 @@
 
         function renderStudentList() {
             const container = document.getElementById('studentList');
-            if (!container) return;
             container.innerHTML = "";
             INITIAL_STUDENTS.forEach(std => {
                 const { count, pct } = getStudentStats(std.id);
@@ -282,10 +278,10 @@
                 const item = document.createElement('div');
                 item.onclick = () => { currentStudentId = std.id; renderAllViews(); };
                 item.className = `p-2.5 rounded-xl border transition cursor-pointer flex items-center justify-between ${
-                    isSelected ? 'bg-brand-50 border-brand-300 font-semibold' : 'bg-white hover:bg-slate-50 border-slate-200'
+                    isSelected ? 'bg-brand-50 border-brand-300' : 'bg-white hover:bg-slate-50 border-slate-200'
                 }`;
                 item.innerHTML = `
-                    <div class="text-xs text-slate-800 truncate">${std.name}</div>
+                    <div class="text-xs font-semibold text-slate-800 truncate">${std.name}</div>
                     <span class="text-xs font-bold ${pct === 100 ? 'text-emerald-600' : 'text-slate-600'}">${pct}%</span>
                 `;
                 container.appendChild(item);
@@ -300,7 +296,6 @@
             document.getElementById('studentPctText').innerText = `${pct}%`;
 
             const tbody = document.getElementById('matrixTableBody');
-            if (!tbody) return;
             tbody.innerHTML = "";
             const records = window.memorizationData[std.id] || {};
 
@@ -397,7 +392,7 @@
                     <tbody>${rowsHtml}</tbody>
                 </table>
 
-                <div style="margin-top:40px; display:flex; justify-between; font-size:12px;">
+                <div style="margin-top:40px; display:flex; justify-content:space-between; font-size:12px;">
                     <div><p>Catatan Guru: _____________________________________________</p></div>
                     <div><p>Tandatangan Guru: ___________________________</p></div>
                 </div>
