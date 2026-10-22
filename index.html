@@ -18,19 +18,10 @@
             theme: {
                 extend: {
                     colors: {
-                        brand: {
-                            50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd',
-                            500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985',
-                        },
-                        mint: {
-                            50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0',
-                            500: '#22c55e', 600: '#16a34a', 700: '#15803d',
-                        }
+                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985' },
+                        mint: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
                     },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        arabic: ['Tajawal', 'sans-serif'],
-                    }
+                    fontFamily: { sans: ['Inter', 'sans-serif'], arabic: ['Tajawal', 'sans-serif'] }
                 }
             }
         }
@@ -41,12 +32,8 @@
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-        
-        /* ATURAN CETAKAN KHAS (PRINT STYLES) */
         @media print {
-            .no-print, header, aside, #matrixFilterBar, #dateModal, #syncModal, #printChoiceModal, button { 
-                display: none !important; 
-            }
+            .no-print, header, aside, #matrixFilterBar, #dateModal, #syncModal, #printChoiceModal, button { display: none !important; }
             body { background: white !important; color: black !important; padding: 0 !important; }
             .print-container { display: block !important; width: 100% !important; margin: 0 !important; }
             table { border-collapse: collapse !important; width: 100% !important; }
@@ -55,6 +42,84 @@
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Firebase SDK (Version 11 CDN) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // SILA MASUKKAN MAKLUMAT FIREBASE ANDA DI SINI
+        const firebaseConfig = {
+            apiKey: "MASUKKAN_API_KEY_ANDA_DI_SINI",
+            authDomain: "MASUKKAN_PROJECT_ID.firebaseapp.com",
+            projectId: "MASUKKAN_PROJECT_ID",
+            storageBucket: "MASUKKAN_PROJECT_ID.appspot.com",
+            messagingSenderId: "MASUKKAN_SENDER_ID",
+            appId: "MASUKKAN_APP_ID"
+        };
+
+        window.db = null;
+        window.isCloudConnected = false;
+
+        async function initFirebase() {
+            if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("MASUKKAN_API_KEY")) {
+                console.warn("Firebase Config belum diisi. Menggunakan mod Tempatan (LocalStorage).");
+                updateCloudStatusUI(false, "Mod Tempatan (LocalStorage)");
+                return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                window.db = getFirestore(app);
+                await signInAnonymously(auth);
+
+                window.isCloudConnected = true;
+                updateCloudStatusUI(true, "Terhubung ke Awan (Real-time)");
+                setupRealtimeListener();
+            } catch (err) {
+                console.error("Gagal menyambung ke Firebase:", err);
+                window.isCloudConnected = false;
+                updateCloudStatusUI(false, "Mod Tempatan (Ralat Sambungan)");
+            }
+        }
+
+        function setupRealtimeListener() {
+            if (!window.db) return;
+            const docRef = doc(window.db, 'hafalan_records', 'main_data');
+
+            onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const cloudData = docSnap.data().records || {};
+                    window.memorizationData = cloudData;
+                    localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(cloudData));
+                    if (window.renderAllViews) window.renderAllViews();
+                }
+            }, (err) => {
+                console.error("Ralat Sync Realtime:", err);
+            });
+        }
+
+        window.saveDataToCloud = async function(data) {
+            if (!window.db || !window.isCloudConnected) return;
+            try {
+                const docRef = doc(window.db, 'hafalan_records', 'main_data');
+                await setDoc(docRef, { records: data, lastUpdated: new Date().toISOString() }, { merge: true });
+            } catch (err) {
+                console.error("Gagal simpan ke Awan:", err);
+            }
+        };
+
+        function updateCloudStatusUI(connected, text) {
+            const dot = document.getElementById('cloudStatusDot');
+            const statusText = document.getElementById('cloudStatusText');
+            if (dot) dot.className = connected ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse" : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block";
+            if (statusText) statusText.innerText = text;
+        }
+
+        window.addEventListener('load', initFirebase);
+    </script>
 
     <!-- Header App -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
@@ -70,6 +135,14 @@
             </div>
 
             <div class="flex items-center space-x-2 sm:space-x-3">
+                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-semibold text-slate-700">
+                    <span id="cloudStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
+                    <span id="cloudStatusText">Mod Tempatan</span>
+                </div>
+                <button onclick="exportDataJSON()" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span>Eksport Backup</span>
+                </button>
                 <button onclick="openPrintChoiceModal()" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5">
                     <i data-lucide="printer" class="w-4 h-4"></i>
                     <span>Cetak Laporan</span>
@@ -80,20 +153,15 @@
 
     <!-- Main Workspace -->
     <div class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col md:flex-row gap-6 no-print">
-        <!-- Sidebar Senarai Pelajar -->
         <aside class="w-full md:w-80 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col shrink-0">
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
                 <i data-lucide="users" class="w-4 h-4 text-brand-600"></i>
                 Senarai Pelajar (7)
             </h2>
-            <div id="studentList" class="space-y-1.5 overflow-y-auto max-h-[500px] pr-1 flex-1">
-                <!-- Populated dynamically -->
-            </div>
+            <div id="studentList" class="space-y-1.5 overflow-y-auto max-h-[500px] pr-1 flex-1"></div>
         </aside>
 
-        <!-- Main Content Matrix -->
         <main class="flex-1 flex flex-col gap-5 min-w-0">
-            <!-- Student Header -->
             <div id="studentDetailHeader" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
@@ -112,7 +180,6 @@
                 </div>
             </div>
 
-            <!-- Table Matriks Hafalan -->
             <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                 <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                     <h3 class="font-bold text-slate-800 text-sm">Jadual Hafalan Semasa</h3>
@@ -122,13 +189,10 @@
                     <table class="w-full text-left border-collapse min-w-[750px]">
                         <thead>
                             <tr id="matrixTableHeader" class="bg-slate-100/80 border-b border-slate-200 text-slate-700 text-xs uppercase">
-                                <th class="p-3 pl-4 font-bold">Bab / Topik</th>
-                                <!-- Tajuk kolum diisi menerusi JS -->
+                                <th class="p-3 pl-4 font-bold min-w-[150px]">Bab / Topik</th>
                             </tr>
                         </thead>
-                        <tbody id="matrixTableBody" class="divide-y divide-slate-100 text-xs">
-                            <!-- Populated dynamically -->
-                        </tbody>
+                        <tbody id="matrixTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
                     </table>
                 </div>
             </div>
@@ -147,38 +211,28 @@
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-
-            <p class="text-xs text-slate-600">Sila pilih jenis laporan yang ingin dicetak ke dalam format PDF / Kertas:</p>
-
             <div class="space-y-3">
-                <button onclick="printIndividualReport()" class="w-full p-4 text-left rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 transition group flex items-start gap-3">
-                    <div class="p-2.5 bg-brand-100 text-brand-700 rounded-lg group-hover:bg-brand-600 group-hover:text-white transition">
-                        <i data-lucide="user-check" class="w-5 h-5"></i>
-                    </div>
+                <button onclick="printIndividualReport()" class="w-full p-4 text-left rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 transition flex items-start gap-3">
+                    <div class="p-2.5 bg-brand-100 text-brand-700 rounded-lg"><i data-lucide="user-check" class="w-5 h-5"></i></div>
                     <div>
                         <div class="text-sm font-bold text-slate-800">PILIHAN A: Laporan Individu Pelajar</div>
-                        <div class="text-xs text-slate-500 mt-0.5">Mencetak helaian laporan lengkap untuk pelajar yang dipilih sahaja.</div>
+                        <div class="text-xs text-slate-500 mt-0.5">Mencetak helaian laporan lengkap untuk pelajar yang dipilih.</div>
                     </div>
                 </button>
-
-                <button onclick="printClassOverviewReport()" class="w-full p-4 text-left rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition group flex items-start gap-3">
-                    <div class="p-2.5 bg-emerald-100 text-emerald-700 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition">
-                        <i data-lucide="users" class="w-5 h-5"></i>
-                    </div>
+                <button onclick="printClassOverviewReport()" class="w-full p-4 text-left rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition flex items-start gap-3">
+                    <div class="p-2.5 bg-emerald-100 text-emerald-700 rounded-lg"><i data-lucide="users" class="w-5 h-5"></i></div>
                     <div>
                         <div class="text-sm font-bold text-slate-800">PILIHAN B: Ringkasan Keseluruhan Kelas</div>
-                        <div class="text-xs text-slate-500 mt-0.5">Mencetak jadual ringkasan matriks hafalan kesemua 7 orang pelajar dalam 1 muka surat.</div>
+                        <div class="text-xs text-slate-500 mt-0.5">Mencetak jadual ringkasan hafalan semua pelajar.</div>
                     </div>
                 </button>
             </div>
-
             <div class="flex justify-end pt-2 border-t border-slate-100">
                 <button onclick="closePrintModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Batal</button>
             </div>
         </div>
     </div>
 
-    <!-- Halaman Khas Cetakan (Hidden In Web UI) -->
     <div id="printSection" class="hidden print-container"></div>
 
     <!-- Date Picker Modal -->
@@ -196,8 +250,7 @@
     <!-- LOGIK JAVASCRIPT UTAMA -->
     <script>
         const CURRICULUM = {
-            titleArabic: "فقه المعاملات",
-            titleMalay: "Fiqh Muamalat",
+            titleArabic: "فقه المعاملات", titleMalay: "Fiqh Muamalat",
             columns: [
                 { id: "takrif", nameMalay: "Takrif (Definisi)", nameArabic: "تعريف" },
                 { id: "dalil", nameMalay: "Dalil", nameArabic: "دليل" },
@@ -230,9 +283,7 @@
 
         let totalMandatoryItems = 0;
         CURRICULUM.chapters.forEach(ch => {
-            Object.keys(ch.requirements).forEach(colId => {
-                if (ch.requirements[colId]) totalMandatoryItems++;
-            });
+            Object.keys(ch.requirements).forEach(colId => { if (ch.requirements[colId]) totalMandatoryItems++; });
         });
 
         let currentStudentId = "std_1";
@@ -255,10 +306,10 @@
             headerTr.innerHTML = html;
         }
 
-        function renderAllViews() {
+        window.renderAllViews = function() {
             renderStudentList();
             renderStudentMatrix();
-        }
+        };
 
         function getStudentStats(stdId) {
             const records = window.memorizationData[stdId] || {};
@@ -346,7 +397,6 @@
             });
         }
 
-        // Cetakan Modal & Generator
         function openPrintChoiceModal() { document.getElementById('printChoiceModal').classList.remove('hidden'); }
         function closePrintModal() { document.getElementById('printChoiceModal').classList.add('hidden'); }
 
@@ -363,13 +413,9 @@
                 CURRICULUM.columns.forEach(col => {
                     const isReq = ch.requirements[col.id];
                     const dateVal = records[`${ch.id}_${col.id}`];
-                    if (!isReq) {
-                        rowsHtml += `<td style="text-align:center; background:#f1f5f9;">🔒 X</td>`;
-                    } else if (dateVal) {
-                        rowsHtml += `<td style="text-align:center; color:#15803d; font-weight:bold;">✅ ${formatDateShort(dateVal)}</td>`;
-                    } else {
-                        rowsHtml += `<td style="text-align:center; color:#b91c1c;">❌ Belum</td>`;
-                    }
+                    if (!isReq) rowsHtml += `<td style="text-align:center; background:#f1f5f9;">🔒 X</td>`;
+                    else if (dateVal) rowsHtml += `<td style="text-align:center; color:#15803d; font-weight:bold;">✅ ${formatDateShort(dateVal)}</td>`;
+                    else rowsHtml += `<td style="text-align:center; color:#b91c1c;">❌ Belum</td>`;
                 });
                 rowsHtml += `</tr>`;
             });
@@ -380,29 +426,16 @@
                     <h2 style="font-size:16px; font-weight:bold; margin:0;">SISTEM SEMAKAN HAFALAN FIQH MUAMALAT</h2>
                     <h3 style="font-size:14px; font-weight:bold; margin:5px 0 0 0;">LAPORAN KEMAJUAN HAFALAN INDIVIDU</h3>
                 </div>
-
                 <table style="width:100%; border:none !important; margin-bottom:15px; font-size:12px;">
                     <tr style="border:none !important;"><td style="border:none !important; padding:2px 0;"><strong>Nama Pelajar:</strong> ${std.name}</td></tr>
                     <tr style="border:none !important;"><td style="border:none !important; padding:2px 0;"><strong>Status Kemajuan:</strong> ${count} / ${totalMandatoryItems} Topik Wajib (${pct}% Selesai)</td></tr>
                     <tr style="border:none !important;"><td style="border:none !important; padding:2px 0;"><strong>Tarikh Cetakan:</strong> ${todayStr}</td></tr>
                 </table>
-
                 <table style="width:100%; margin-bottom:30px;">
-                    <thead>
-                        <tr style="background:#f8fafc;">
-                            <th style="text-align:left;">BAB / TOPIK</th>
-                            <th>TAKRIF</th><th>DALIL</th><th>HUKUM</th><th>JENIS</th><th>RUKUN</th><th>SYARAT</th>
-                        </tr>
-                    </thead>
+                    <thead><tr style="background:#f8fafc;"><th style="text-align:left;">BAB / TOPIK</th><th>TAKRIF</th><th>DALIL</th><th>HUKUM</th><th>JENIS</th><th>RUKUN</th><th>SYARAT</th></tr></thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
-
-                <div style="margin-top:40px; display:flex; justify-between; font-size:12px;">
-                    <div><p>Catatan Guru: _____________________________________________</p></div>
-                    <div><p>Tandatangan Guru: ___________________________</p></div>
-                </div>
             `;
-
             window.print();
         }
 
@@ -417,23 +450,14 @@
             INITIAL_STUDENTS.forEach((std, idx) => {
                 const { count, pct } = getStudentStats(std.id);
                 const records = window.memorizationData[std.id] || {};
-
-                rowsHtml += `<tr>
-                    <td style="text-align:center;">${idx + 1}</td>
-                    <td>${std.name}</td>
-                    <td style="text-align:center; font-weight:bold;">${pct}% (${count}/${totalMandatoryItems})</td>`;
-
+                rowsHtml += `<tr><td style="text-align:center;">${idx + 1}</td><td>${std.name}</td><td style="text-align:center; font-weight:bold;">${pct}% (${count}/${totalMandatoryItems})</td>`;
                 CURRICULUM.chapters.forEach(ch => {
                     let reqCount = 0, doneCount = 0;
                     Object.keys(ch.requirements).forEach(colId => {
-                        if (ch.requirements[colId]) {
-                            reqCount++;
-                            if (records[`${ch.id}_${colId}`]) doneCount++;
-                        }
+                        if (ch.requirements[colId]) { reqCount++; if (records[`${ch.id}_${colId}`]) doneCount++; }
                     });
                     rowsHtml += `<td style="text-align:center;">${doneCount}/${reqCount}</td>`;
                 });
-
                 rowsHtml += `</tr>`;
             });
 
@@ -443,50 +467,48 @@
                     <h2 style="font-size:16px; font-weight:bold; margin:0;">SISTEM SEMAKAN HAFALAN FIQH MUAMALAT</h2>
                     <h3 style="font-size:14px; font-weight:bold; margin:5px 0 0 0;">RINGKASAN PENCAPAIAN KESELURUHAN KELAS</h3>
                 </div>
-
                 <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:15px;">
                     <span><strong>Jumlah Pelajar:</strong> ${INITIAL_STUDENTS.length} Orang</span>
                     <span><strong>Purata Kelas:</strong> ${classAvg}%</span>
                     <span><strong>Tarikh Cetakan:</strong> ${todayStr}</span>
                 </div>
-
                 <table style="width:100%; margin-bottom:30px;">
-                    <thead>
-                        <tr style="background:#f8fafc;">
-                            <th style="width:30px; text-align:center;">BIL</th>
-                            <th>NAMA PELAJAR</th>
-                            <th style="text-align:center;">KEMAJUAN</th>
-                            <th>Al-Bai'</th><th>Al-Riba</th><th>Khiyar</th><th>Salam</th><th>Rahn</th><th>Dhaman</th><th>Wakalah</th><th>Qiradh</th>
-                        </tr>
-                    </thead>
+                    <thead><tr style="background:#f8fafc;"><th style="width:30px; text-align:center;">BIL</th><th>NAMA PELAJAR</th><th style="text-align:center;">KEMAJUAN</th><th>Al-Bai'</th><th>Al-Riba</th><th>Khiyar</th><th>Salam</th><th>Rahn</th><th>Dhaman</th><th>Wakalah</th><th>Qiradh</th></tr></thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
-
-                <div style="margin-top:30px; font-size:12px; display:flex; justify-content:space-between;">
-                    <div>Catatan: __________________________________________________</div>
-                    <div>Tandatangan Guru: ___________________________</div>
-                </div>
             `;
-
             window.print();
         }
 
-        // Pengendali Tarikh Modal
         function openDateModal(stdId, chId, colId) {
             activeTargetCell = { stdId, chId, colId };
             document.getElementById('modalDatePicker').value = (window.memorizationData[stdId] || {})[`${chId}_${colId}`] || new Date().toISOString().split('T')[0];
             document.getElementById('dateModal').classList.remove('hidden');
         }
         function closeDateModal() { document.getElementById('dateModal').classList.add('hidden'); }
+        
         function saveDateSelection() {
             if (!activeTargetCell) return;
             const { stdId, chId, colId } = activeTargetCell;
             const selectedDate = document.getElementById('modalDatePicker').value;
             if (!window.memorizationData[stdId]) window.memorizationData[stdId] = {};
             window.memorizationData[stdId][`${chId}_${colId}`] = selectedDate;
+            
             localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(window.memorizationData));
+            if (window.saveDataToCloud) window.saveDataToCloud(window.memorizationData);
+
             closeDateModal();
             renderAllViews();
+        }
+
+        function exportDataJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.memorizationData, null, 2));
+            const a = document.createElement('a');
+            a.setAttribute("href", dataStr);
+            a.setAttribute("download", `Hafalan_Fiqh_Backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
         }
 
         function formatDateShort(dateStr) {
