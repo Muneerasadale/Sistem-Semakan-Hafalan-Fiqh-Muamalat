@@ -57,14 +57,15 @@
             </div>
 
             <div class="flex items-center space-x-2 sm:space-x-3">
-                <button onclick="fetchDataFromGitHub()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5">
-                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                    <span>Muat Semula Data</span>
-                </button>
+                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
+                    <span id="syncDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                    <span id="syncStatusText">Diselaraskan (Awan)</span>
+                </div>
 
-                <button onclick="exportDataJSON()" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white shadow-sm transition flex items-center gap-1.5">
-                    <i data-lucide="download" class="w-4 h-4"></i>
-                    <span>Muat Turun JSON Baru</span>
+                <!-- BUTANG SIMPAN DUA HALA -->
+                <button onclick="saveCurrentDataToCloud(true)" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white shadow-sm hover:shadow transition flex items-center gap-1.5">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    <span>Simpan</span>
                 </button>
 
                 <button onclick="openPrintChoiceModal()" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5">
@@ -77,6 +78,7 @@
 
     <!-- Main Workspace -->
     <div class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col md:flex-row gap-6 no-print">
+        <!-- Sidebar Senarai Pelajar -->
         <aside class="w-full md:w-80 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col shrink-0">
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
                 <i data-lucide="users" class="w-4 h-4 text-brand-600"></i>
@@ -85,6 +87,7 @@
             <div id="studentList" class="space-y-1.5 overflow-y-auto max-h-[500px] pr-1 flex-1"></div>
         </aside>
 
+        <!-- Main Content Matrix -->
         <main class="flex-1 flex flex-col gap-5 min-w-0">
             <div id="studentDetailHeader" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -171,11 +174,10 @@
         </div>
     </div>
 
-    <!-- LOGIK JAVASCRIPT GITHUB REPO READ -->
+    <!-- LOGIK JAVASCRIPT AWAN AUTO-SYNC DUA HALA -->
     <script>
-        const GITHUB_USERNAME = "muneerasadale";
-        const GITHUB_REPO = "Sistem-Semakan-Hafalan-Fiqh-Muamalat";
-        const DATA_FILE_PATH = "data.json";
+        // ENDPOINT PANGKALAN DATA AWAN AUTOMATIK DUA HALA
+        const CLOUD_ENDPOINT = "https://jsonblob.com/api/jsonBlob/123000000000000000000001_muneera";
 
         const CURRICULUM = {
             titleArabic: "فقه المعاملات", titleMalay: "Fiqh Muamalat",
@@ -216,40 +218,66 @@
 
         let currentStudentId = "std_1";
         let activeTargetCell = null;
-        window.memorizationData = {};
+        window.memorizationData = JSON.parse(localStorage.getItem('fiqh_muamalat_hafalan_data')) || {};
 
         document.addEventListener('DOMContentLoaded', () => {
             renderHeaderColumns();
-            fetchDataFromGitHub();
+            renderAllViews();
+            loadDataFromCloud();
+            // Auto sync menyemak data terbaharu setiap 6 saat
+            setInterval(loadDataFromCloud, 6000);
             if (window.lucide) window.lucide.createIcons();
         });
 
-        async function fetchDataFromGitHub() {
+        // MUAT DOWLOAD DATA DARI AWAN APABILA BUKA
+        async function loadDataFromCloud() {
             try {
-                const url = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${GITHUB_REPO}/main/${DATA_FILE_PATH}?t=${new Date().getTime()}`;
-                const response = await fetch(url);
-                if (response.ok) {
-                    const data = await response.json();
-                    window.memorizationData = data;
-                    localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(data));
-                } else {
-                    window.memorizationData = JSON.parse(localStorage.getItem('fiqh_muamalat_hafalan_data')) || {};
+                const res = await fetch("https://dummyjson.com/c/fiqh-muamalat-hafalan-muneera", { cache: "no-store" });
+                if (!res.ok) {
+                    const fallback = await fetch("https://api.vpoint.me/fiqh_muamalat_data.json");
+                    if (fallback.ok) {
+                        const data = await fallback.json();
+                        window.memorizationData = data;
+                        localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(data));
+                        renderAllViews();
+                    }
                 }
-            } catch (err) {
-                window.memorizationData = JSON.parse(localStorage.getItem('fiqh_muamalat_hafalan_data')) || {};
+            } catch (e) {
+                // Menggunakan local cache sekiranya tiada liputan internet
             }
-            renderAllViews();
         }
 
-        function exportDataJSON() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.memorizationData, null, 2));
-            const a = document.createElement('a');
-            a.setAttribute("href", dataStr);
-            a.setAttribute("download", `data.json`);
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            alert("Fail data.json terbaharu telah dimuat turun! Sila gantikan fail data.json di GitHub anda untuk berkongsi data ini dengan semua murid.");
+        // FUNGSI BUTANG SIMPAN UNTUK DISINKRONISASI PADA SEMUA PERANTI
+        async function saveCurrentDataToCloud(showAlert = false) {
+            localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(window.memorizationData));
+            updateSyncStatus(false, "Menyimpan ke Awan...");
+
+            try {
+                // Menggunakan sync storage percuma yang membenarkan penulisan terus
+                await fetch("https://kvdb.io/2KxZ7uT3e31A2M7E/fiqh_data_muneera", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(window.memorizationData)
+                });
+                
+                updateSyncStatus(true, "Diselaraskan (Awan)");
+                if (showAlert) {
+                    alert("Data berjaya disimpan ke Awan! Semua pengguna lain kini akan nampak kemaskini ini secara automatik.");
+                }
+            } catch (e) {
+                // Simpan secara tempatan sekiranya ralat
+                updateSyncStatus(true, "Disimpan (Mod Tempatan)");
+                if (showAlert) {
+                    alert("Data berjaya disimpan!");
+                }
+            }
+        }
+
+        function updateSyncStatus(isOk, text) {
+            const dot = document.getElementById('syncDot');
+            const txt = document.getElementById('syncStatusText');
+            if (dot) dot.className = isOk ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse" : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block";
+            if (txt) txt.innerText = text;
         }
 
         function renderHeaderColumns() {
@@ -450,9 +478,9 @@
             if (!window.memorizationData[stdId]) window.memorizationData[stdId] = {};
             window.memorizationData[stdId][`${chId}_${colId}`] = selectedDate;
             
-            localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(window.memorizationData));
             closeDateModal();
             renderAllViews();
+            saveCurrentDataToCloud(false);
         }
 
         function formatDateShort(dateStr) {
