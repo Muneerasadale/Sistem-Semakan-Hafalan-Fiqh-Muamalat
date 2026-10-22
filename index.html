@@ -4,1198 +4,473 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Semakan Hafalan Fiqh Muamalat</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter & Tajawal (Arabic) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            200: '#bae6fd',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            700: '#0369a1',
-                            800: '#075985',
-                        },
-                        mint: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            200: '#bbf7d0',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        arabic: ['Tajawal', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
-        }
-        .font-arabic {
-            font-family: 'Tajawal', sans-serif;
-        }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 9999px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
         @media print {
+            body * { visibility: hidden; }
+            #printableArea, #printableArea * { visibility: visible; }
+            #printableArea { position: absolute; left: 0; top: 0; width: 100%; }
             .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            .print-break-inside-avoid { break-inside: avoid; }
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
 
-    <script>
-        // Matrix Definition based strictly on the provided Fiqh Muamalat syllabus image:
-        // '/' -> true (Required / Mandatory), 'X' -> false (Exempt / Disabled)
-        const CURRICULUM = {
-            titleArabic: "فقه المعاملات",
-            titleMalay: "Fiqh Muamalat",
-            columns: [
-                { id: "takrif", nameMalay: "Takrif (Definisi)", nameArabic: "تعريف" },
-                { id: "dalil", nameMalay: "Dalil", nameArabic: "دليل" },
-                { id: "ahkam", nameMalay: "Ahkam (Hukum)", nameArabic: "أحكام" },
-                { id: "anwa", nameMalay: "Anwa' (Jenis)", nameArabic: "أنواع" },
-                { id: "arkan", nameMalay: "Arkan (Rukun)", nameArabic: "أركان" },
-                { id: "shurut", nameMalay: "Shurut (Syarat)", nameArabic: "شروط" }
-            ],
-            chapters: [
-                {
-                    id: "al_bai",
-                    nameMalay: "Al-Bai' (Jual Beli)",
-                    nameArabic: "البيع",
-                    requirements: { takrif: true, dalil: true, ahkam: false, anwa: true, arkan: true, shurut: true }
-                },
-                {
-                    id: "al_riba",
-                    nameMalay: "Al-Riba",
-                    nameArabic: "الربا",
-                    requirements: { takrif: true, dalil: true, ahkam: true, anwa: true, arkan: false, shurut: true }
-                },
-                {
-                    id: "al_khiyar",
-                    nameMalay: "Al-Khiyar",
-                    nameArabic: "الخيار",
-                    requirements: { takrif: false, dalil: false, ahkam: false, anwa: true, arkan: false, shurut: false }
-                },
-                {
-                    id: "al_salam",
-                    nameMalay: "Al-Salam",
-                    nameArabic: "السلم",
-                    requirements: { takrif: true, dalil: true, ahkam: false, anwa: false, arkan: true, shurut: true }
-                },
-                {
-                    id: "al_rahn",
-                    nameMalay: "Al-Rahn (Cagaran / Gadai)",
-                    nameArabic: "الرهن",
-                    requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true }
-                },
-                {
-                    id: "al_dhaman",
-                    nameMalay: "Al-Dhaman (Jaminan)",
-                    nameArabic: "الضمان",
-                    requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true }
-                },
-                {
-                    id: "al_wakalah",
-                    nameMalay: "Al-Wakalah (Wakil)",
-                    nameArabic: "الوكالة",
-                    requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true }
-                },
-                {
-                    id: "al_qiradh",
-                    nameMalay: "Al-Qiradh (Pelaburan / Mudharabah)",
-                    nameArabic: "القراض",
-                    requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true }
-                }
-            ]
-        };
-
-        // Initial Student List
-        const INITIAL_STUDENTS = [
-            { id: "std_1", name: "AREEFA DALILA BINTI SHARUL AZLAN", gender: "F" },
-            { id: "std_2", name: "FAIROZ SYAHMI BIN MOHD ZAIDI", gender: "M" },
-            { id: "std_3", name: "MUIZ ZAMAN BIN MOHAMAD ZAKI", gender: "M" },
-            { id: "std_4", name: "NOR QAMIELIEYA BINTI AMRAN", gender: "F" },
-            { id: "std_5", name: "NUR AUNI SYAZWINA BINTI MOHD AZRIL", gender: "F" },
-            { id: "std_6", name: "NUR IZZATI UMAIRA BINTI ABDULLAH", gender: "F" },
-            { id: "std_7", name: "QAMIEYL IYQRAM ASZRIN BIN ABDULLAH", gender: "M" }
-        ];
-
-        // Calculate total mandatory items across curriculum
-        let totalMandatoryItems = 0;
-        CURRICULUM.chapters.forEach(ch => {
-            Object.keys(ch.requirements).forEach(colId => {
-                if (ch.requirements[colId]) totalMandatoryItems++;
-            });
-        });
-    </script>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase Configuration setup
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fiqh-muamalat-hafalan-app';
-        let firebaseConfig = null;
-
-        try {
-            if (typeof __firebase_config !== 'undefined') {
-                firebaseConfig = JSON.parse(__firebase_config);
-            }
-        } catch (e) {
-            console.warn("Firebase config parse skipped, using LocalStorage mode.");
-        }
-
-        window.db = null;
-        window.isCloudConnected = false;
-
-        async function initFirebase() {
-            if (!firebaseConfig) {
-                updateCloudStatusUI(false, "Mod Tempatan (LocalStorage)");
-                return;
-            }
-
-            try {
-                const app = initializeApp(firebaseConfig);
-                const auth = getAuth(app);
-                window.db = getFirestore(app);
-
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
-                window.isCloudConnected = true;
-                updateCloudStatusUI(true, "Awan Terhubung (Firestore Sync)");
-                setupRealtimeListener();
-            } catch (err) {
-                console.warn("Firebase fallback to offline:", err);
-                window.isCloudConnected = false;
-                updateCloudStatusUI(false, "Mod Offline / Tempatan");
-            }
-        }
-
-        function setupRealtimeListener() {
-            if (!window.db) return;
-            const docRef = doc(window.db, 'artifacts', appId, 'public', 'data', 'hafalan_records', 'main_data');
-
-            onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const cloudData = docSnap.data().records || {};
-                    window.memorizationData = cloudData;
-                    localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(cloudData));
-                    if (window.renderAllViews) window.renderAllViews();
-                }
-            }, (error) => {
-                console.error("Firestore sync error:", error);
-            });
-        }
-
-        window.saveDataToCloud = async function(data) {
-            if (!window.db || !window.isCloudConnected) return;
-            try {
-                const docRef = doc(window.db, 'artifacts', appId, 'public', 'data', 'hafalan_records', 'main_data');
-                await setDoc(docRef, { records: data, lastUpdated: new Date().toISOString() }, { merge: true });
-            } catch (err) {
-                console.error("Cloud save error:", err);
-            }
-        };
-
-        function updateCloudStatusUI(connected, text) {
-            const dot = document.getElementById('cloudStatusDot');
-            const statusText = document.getElementById('cloudStatusText');
-            if (dot) {
-                dot.className = connected 
-                    ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse"
-                    : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block";
-            }
-            if (statusText) statusText.innerText = text;
-        }
-
-        window.addEventListener('load', initFirebase);
-    </script>
-
-    <!-- Top Header -->
+    <!-- Top Navigation Bar -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="p-2 bg-gradient-to-tr from-brand-600 to-mint-500 rounded-xl text-white shadow-md">
-                    <i data-lucide="book-open" class="w-6 h-6"></i>
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-teal-600 text-white p-2 rounded-lg">
+                    <i class="fa-solid font-bold fa-book-quran text-xl"></i>
                 </div>
                 <div>
-                    <h1 class="text-base sm:text-lg font-bold text-slate-800 leading-tight">Sistem Semakan Hafalan</h1>
-                    <p class="text-xs text-brand-600 font-semibold font-arabic">فقه المعاملات - Fiqh Muamalat</p>
+                    <h1 class="text-lg font-bold text-slate-800 leading-tight">Sistem Semakan Hafalan</h1>
+                    <p class="text-xs text-teal-700 font-medium">Fiqh Muamalat - فقه المعاملات</p>
                 </div>
             </div>
 
-            <!-- Role Selector & Header Actions -->
-            <div class="flex items-center space-x-2 sm:space-x-3">
-                <!-- User Role Selector Toggle -->
-                <div class="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-semibold">
-                    <button id="roleStudentBtn" onclick="setUserRole('student')" class="px-2.5 py-1 rounded-md transition flex items-center gap-1 bg-white text-slate-800 shadow-xs">
-                        <i data-lucide="user" class="w-3.5 h-3.5 text-brand-600"></i>
-                        <span>Pelajar</span>
+            <!-- Role Selector & Global Save -->
+            <div class="flex items-center gap-3">
+                <div class="bg-slate-100 p-1 rounded-xl flex border border-slate-200 text-xs font-semibold">
+                    <button id="roleStudentBtn" onclick="switchRole('student')" class="px-3 py-1.5 rounded-lg transition-all bg-white shadow-sm text-teal-700">
+                        <i class="fa-solid fa-user-graduate mr-1"></i> Pelajar
                     </button>
-                    <button id="roleTeacherBtn" onclick="setUserRole('teacher')" class="px-2.5 py-1 rounded-md transition flex items-center gap-1 text-slate-600 hover:text-slate-900">
-                        <i data-lucide="graduation-cap" class="w-3.5 h-3.5 text-mint-600"></i>
-                        <span>Guru / Tasmik</span>
+                    <button id="roleTeacherBtn" onclick="switchRole('teacher')" class="px-3 py-1.5 rounded-lg transition-all text-slate-600 hover:text-slate-900">
+                        <i class="fa-solid fa-chalkboard-user mr-1"></i> Guru / Tasmik
                     </button>
                 </div>
 
-                <button id="classOverviewBtn" onclick="selectView('overview')" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5">
-                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
-                    <span class="hidden md:inline">Matriks Keseluruhan</span>
-                </button>
-
-                <button onclick="openSyncModal()" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition flex items-center gap-1.5">
-                    <span id="cloudStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                    <i data-lucide="cloud" class="w-4 h-4"></i>
-                    <span id="cloudStatusText" class="hidden lg:inline">Awan / Sync</span>
-                </button>
-
-                <button onclick="saveCurrentData(true)" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white shadow-sm hover:shadow transition flex items-center gap-1.5">
-                    <i data-lucide="save" class="w-4 h-4"></i>
-                    <span>Simpan</span>
+                <button onclick="saveAllData()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-sm transition-all active:scale-95">
+                    <i class="fa-solid fa-floppy-disk"></i> Simpan
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- KPI Summary Section -->
-    <div class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 no-print">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <!-- KPI 1 -->
-            <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center gap-3">
-                <div class="p-3 bg-brand-50 text-brand-600 rounded-xl">
-                    <i data-lucide="pie-chart" class="w-6 h-6"></i>
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto w-full px-4 py-6 flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        <!-- Sidebar / Student List -->
+        <aside class="lg:col-span-1 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-fit no-print">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-users text-teal-600"></i> Senarai Pelajar (<span id="totalStudentsCount">7</span>)
+                </h2>
+                <button onclick="triggerPrintModal()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1">
+                    <i class="fa-solid fa-print"></i> Cetak
+                </button>
+            </div>
+
+            <div class="relative mb-3">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                <input type="text" id="searchInput" oninput="filterStudents()" placeholder="Cari nama pelajar..." class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500">
+            </div>
+
+            <div id="studentList" class="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+                <!-- Dynamic Student List Rendered Here -->
+            </div>
+        </aside>
+
+        <!-- Main Dashboard Area -->
+        <main class="lg:col-span-3 space-y-6" id="printableArea">
+
+            <!-- Student Profile Header Card -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-4">
+                <div class="flex items-center gap-4">
+                    <div id="studentAvatar" class="w-12 h-12 rounded-2xl bg-teal-100 text-teal-700 font-bold text-lg flex items-center gap-0 justify-center border border-teal-200">
+                        --
+                    </div>
+                    <div>
+                        <h2 id="selectedStudentName" class="font-bold text-slate-800 text-base md:text-lg">Sila Pilih Pelajar</h2>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span id="roleBadge" class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">Mod Pelajar</span>
+                            <span class="text-xs text-slate-400">•</span>
+                            <span id="lastUpdatedText" class="text-xs text-slate-500">Kemaskini: Baru sahaja</span>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <div class="text-xs text-slate-500 font-medium">Purata Kelas</div>
-                    <div id="kpiClassAverage" class="text-xl font-bold text-slate-800">0%</div>
+
+                <div class="flex items-center gap-6">
+                    <div class="text-right">
+                        <span class="text-xs font-semibold text-slate-500 block">Keseluruhan Hafal</span>
+                        <span id="totalHafalCountText" class="text-lg font-bold text-teal-600">0 / 35</span>
+                    </div>
+                    <div class="w-16 h-16 relative flex items-center justify-center">
+                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                            <path class="text-slate-100" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="progressCircle" class="text-teal-500 transition-all duration-500" stroke-dasharray="0, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                        <span id="progressPercentageText" class="absolute text-xs font-bold text-slate-700">0%</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- KPI 2 -->
-            <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center gap-3">
-                <div class="p-3 bg-mint-50 text-mint-600 rounded-xl">
-                    <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+            <!-- Syllabus Matrix Checklist Grid -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-table-cells text-teal-600"></i> Matriks Semakan Hafalan Fiqh Muamalat
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Tanda petak yang telah dihafal dan sah ujian bertulis 100% betul.</p>
+                    </div>
                 </div>
-                <div>
-                    <div class="text-xs text-slate-500 font-medium">Jumlah Item Hafal</div>
-                    <div id="kpiTotalMemorized" class="text-xl font-bold text-slate-800">0</div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/70 border-b border-slate-200 text-slate-600">
+                                <th class="p-3 font-semibold text-center w-36">BAB / TOPIK</th>
+                                <th class="p-3 font-semibold text-center">TAKRIF<br><span class="text-[10px] text-teal-700 font-normal">تعريف</span></th>
+                                <th class="p-3 font-semibold text-center">DALIL<br><span class="text-[10px] text-teal-700 font-normal">دليل</span></th>
+                                <th class="p-3 font-semibold text-center">HUKUM<br><span class="text-[10px] text-teal-700 font-normal">أحكام</span></th>
+                                <th class="p-3 font-semibold text-center">JENIS<br><span class="text-[10px] text-teal-700 font-normal">أنواع</span></th>
+                                <th class="p-3 font-semibold text-center">RUKUN<br><span class="text-[10px] text-teal-700 font-normal">أركان</span></th>
+                                <th class="p-3 font-semibold text-center">SYARAT<br><span class="text-[10px] text-teal-700 font-normal">شروط</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrixTableBody" class="divide-y divide-slate-100">
+                            <!-- Matrix Checklist Rendered Here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Print Modal Window -->
+    <div id="printModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-xl rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-print text-teal-600"></i> Cetak / Simpan PDF Laporan
+                </h3>
+                <button onclick="closePrintModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto space-y-4 text-xs text-slate-600">
+                <p class="text-slate-700">Pilih skop laporan yang ingin dicetak atau disimpan sebagai PDF:</p>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
+                        <input type="radio" name="printType" value="single" checked class="text-teal-600 focus:ring-teal-500">
+                        <div>
+                            <span class="font-bold text-slate-800 block">Laporan Pelajar Terpilih</span>
+                            <span class="text-slate-500">Mencetak matriks ringkasan untuk pelajar yang sedang dipilih.</span>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
+                        <input type="radio" name="printType" value="all" class="text-teal-600 focus:ring-teal-500">
+                        <div>
+                            <span class="font-bold text-slate-800 block">Laporan Keseluruhan Kelas</span>
+                            <span class="text-slate-500">Mencetak ringkasan pencapaian hafalan bagi semua 7 orang pelajar.</span>
+                        </div>
+                    </label>
                 </div>
             </div>
 
-            <!-- KPI 3 -->
-            <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center gap-3">
-                <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
-                    <i data-lucide="award" class="w-6 h-6"></i>
-                </div>
-                <div>
-                    <div class="text-xs text-slate-500 font-medium">Selesai 100%</div>
-                    <div id="kpiCompletedStudents" class="text-xl font-bold text-slate-800">0 / 7</div>
-                </div>
-            </div>
-
-            <!-- KPI 4 -->
-            <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center gap-3">
-                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
-                    <i data-lucide="trophy" class="w-6 h-6"></i>
-                </div>
-                <div class="min-w-0">
-                    <div class="text-xs text-slate-500 font-medium">Terbaik Kelas</div>
-                    <div id="kpiTopStudent" class="text-xs font-bold text-slate-800 truncate">--</div>
-                </div>
+            <div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2">
+                <button onclick="closePrintModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200">
+                    Batal
+                </button>
+                <button onclick="executePrint()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-pdf"></i> Teruskan Cetakan / PDF
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Main Container Layout -->
-    <div class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col md:flex-row gap-6">
-
-        <!-- Sidebar - Student List -->
-        <aside class="w-full md:w-80 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col shrink-0 no-print">
-            <div class="flex items-center justify-between mb-3 px-1">
-                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <i data-lucide="users" class="w-4 h-4 text-brand-600"></i>
-                    Senarai Pelajar (<span id="studentCount">7</span>)
-                </h2>
-                <button onclick="triggerPrint()" title="Cetak / Cetak Laporan PDF" class="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg transition flex items-center gap-1 text-xs font-medium">
-                    <i data-lucide="printer" class="w-4 h-4"></i>
-                    <span class="hidden sm:inline">Cetak</span>
-                </button>
-            </div>
-
-            <!-- Search input -->
-            <div class="relative mb-3">
-                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
-                <input type="text" id="searchStudent" onkeyup="filterStudents()" placeholder="Cari nama pelajar..." 
-                    class="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
-            </div>
-
-            <!-- Student List Items -->
-            <div id="studentList" class="space-y-1.5 overflow-y-auto max-h-[calc(100vh-320px)] pr-1 flex-1">
-                <!-- Dynamically populated -->
-            </div>
-
-            <!-- Class Quick Stats -->
-            <div class="mt-4 pt-3 border-t border-slate-100 bg-slate-50/70 p-3 rounded-xl text-xs space-y-2">
-                <div class="flex justify-between text-slate-600">
-                    <span>Purata Peratus Hafalan:</span>
-                    <span id="classAveragePct" class="font-bold text-brand-600">0%</span>
-                </div>
-                <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                    <div id="classAverageBar" class="bg-brand-500 h-full transition-all duration-500" style="width: 0%"></div>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Main Content Area -->
-        <main class="flex-1 flex flex-col gap-5 min-w-0">
-
-            <!-- Individual Student Header View -->
-            <div id="studentDetailHeader" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div class="flex items-center space-x-3.5">
-                        <div id="studentAvatar" class="w-12 h-12 rounded-2xl bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-lg shadow-inner">
-                            AD
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h2 id="studentNameDisplay" class="text-base sm:text-lg font-bold text-slate-800">
-                                    AREEFA DALILA BINTI SHARUL AZLAN
-                                </h2>
-                                <span id="userRoleBadge" class="text-[10px] bg-brand-50 text-brand-700 border border-brand-200 px-2 py-0.5 rounded-full font-bold">Mod Pelajar</span>
-                            </div>
-                            <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
-                                <span>Status Kemajuan Hafalan Fiqh Muamalat</span>
-                                <span class="text-slate-300">•</span>
-                                <span id="lastUpdatedText" class="text-slate-400">Kemaskini: Baru sahaja</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Individual Completion Percentage Badge -->
-                    <div class="flex items-center space-x-3 bg-gradient-to-r from-slate-50 to-emerald-50/50 p-3 rounded-xl border border-slate-100">
-                        <div class="text-right">
-                            <div class="text-xs text-slate-500 font-medium">Keseluruhan Hafal</div>
-                            <div class="text-xl font-bold text-emerald-600 flex items-baseline justify-end gap-1">
-                                <span id="studentScoreText">0</span>
-                                <span class="text-xs text-slate-400 font-normal">/ <span id="totalRequiredText">38</span></span>
-                            </div>
-                        </div>
-                        <div class="relative w-14 h-14 flex items-center justify-center">
-                            <svg class="w-14 h-14 transform -rotate-90">
-                                <circle cx="28" cy="28" r="22" stroke="currentColor" stroke-width="4" class="text-slate-200" fill="transparent"/>
-                                <circle id="progressCircle" cx="28" cy="28" r="22" stroke="currentColor" stroke-width="4" class="text-emerald-500 transition-all duration-500" stroke-dasharray="138.2" stroke-dashoffset="138.2" stroke-linecap="round" fill="transparent"/>
-                            </svg>
-                            <span id="studentPctText" class="absolute text-xs font-bold text-slate-700">0%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Progress Bar -->
-                <div class="mt-4">
-                    <div class="flex justify-between text-xs text-slate-500 mb-1">
-                        <span>Kemajuan Tugasan Wajib Hafal (38 Item)</span>
-                        <span id="studentPctBarText" class="font-semibold text-emerald-600">0% Selesai</span>
-                    </div>
-                    <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
-                        <div id="studentProgressBar" class="bg-gradient-to-r from-emerald-400 to-mint-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Filter & Legend Bar -->
-            <div id="matrixFilterBar" class="bg-white rounded-xl border border-slate-200/80 px-4 py-3 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 no-print">
-                <!-- Filter buttons -->
-                <div class="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-lg text-xs">
-                    <button onclick="setFilter('all')" id="filterAll" class="px-2.5 py-1 rounded-md font-medium bg-white text-slate-800 shadow-xs">Semua</button>
-                    <button onclick="setFilter('completed')" id="filterCompleted" class="px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900">Telah Hafal</button>
-                    <button onclick="setFilter('pending')" id="filterPending" class="px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900">Belum Hafal</button>
-                </div>
-
-                <!-- Legend Indicators -->
-                <div class="flex flex-wrap items-center gap-3 sm:gap-4 text-xs">
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-5 h-5 rounded-md bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center justify-center font-bold text-xs"><i data-lucide="check" class="w-3.5 h-3.5"></i></span>
-                        <span class="text-slate-600">Wajib (Telah Hafal)</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-5 h-5 rounded-md bg-rose-50 border border-rose-200 flex items-center justify-center font-bold text-xs text-rose-500"><i data-lucide="x" class="w-3.5 h-3.5"></i></span>
-                        <span class="text-slate-600">Wajib (Belum Hafal)</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-5 h-5 rounded-md bg-slate-200/80 text-slate-400 border border-slate-300 flex items-center justify-center font-bold text-xs"><i data-lucide="lock" class="w-3 h-3 text-slate-400"></i></span>
-                        <span class="text-slate-600">Tidak Wajib (X)</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Matrix View / Checklist Grid -->
-            <div id="matrixViewContainer" class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-                <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-                            <span>Jadual Hafalan Bab Fiqh Muamalat</span>
-                            <span class="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">Matrix Semakan</span>
-                        </h3>
-                        <p class="text-xs text-slate-500">Klik pada petak bertanda Wajib untuk meletakkan tarikh tasmik/hafalan.</p>
-                    </div>
-                    <div class="text-right font-arabic font-bold text-lg text-brand-700 hidden sm:block">
-                        فقه المعاملات
-                    </div>
-                </div>
-
-                <!-- Matrix Table -->
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse min-w-[700px]">
-                        <thead>
-                            <tr class="bg-slate-100/80 border-b border-slate-200 text-slate-700 text-xs uppercase tracking-wider">
-                                <th class="p-3 pl-4 font-bold w-48">Bab / Topik</th>
-                                <script>
-                                    CURRICULUM.columns.forEach(col => {
-                                        document.write(`
-                                            <th class="p-3 text-center border-l border-slate-200/60 font-semibold">
-                                                <div>${col.nameMalay}</div>
-                                                <div class="font-arabic text-sm text-brand-700 font-bold mt-0.5">${col.nameArabic}</div>
-                                            </th>
-                                        `);
-                                    });
-                                </script>
-                            </tr>
-                        </thead>
-                        <tbody id="matrixTableBody" class="divide-y divide-slate-100 text-xs">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Class Overview Matrix View (Hidden by Default) -->
-            <div id="overviewContainer" class="hidden bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-                <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-                            <i data-lucide="grid" class="w-5 h-5 text-brand-600"></i>
-                            Matriks Ringkasan Semua Pelajar Kelas
-                        </h3>
-                        <p class="text-xs text-slate-500">Paparan keseluruhan status hafalan 7 pelajar untuk kesemua 8 bab Fiqh Muamalat.</p>
-                    </div>
-                    <button onclick="selectView('single')" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 transition self-start sm:self-auto">
-                        ← Kembali ke Semakan Pelajar
-                    </button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-xs">
-                        <thead>
-                            <tr class="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold">
-                                <th class="p-3 pl-4 w-60 sticky left-0 bg-slate-100 shadow-xs z-10">Nama Pelajar</th>
-                                <th class="p-3 text-center w-24">Kemajuan</th>
-                                <script>
-                                    CURRICULUM.chapters.forEach(ch => {
-                                        document.write(`
-                                            <th class="p-2 text-center border-l border-slate-200 font-semibold min-w-[95px]">
-                                                <div class="truncate" title="${ch.nameMalay}">${ch.nameMalay.split(' ')[0]}</div>
-                                                <div class="font-arabic text-xs text-brand-700 font-bold">${ch.nameArabic}</div>
-                                            </th>
-                                        `);
-                                    });
-                                </script>
-                            </tr>
-                        </thead>
-                        <tbody id="overviewTableBody" class="divide-y divide-slate-100">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-        </main>
-    </div>
-
-    <!-- Date Picker Modal -->
-    <div id="dateModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden no-print">
-        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-sm w-full p-5 space-y-4">
-            <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+    <!-- Date Input Modal -->
+    <div id="dateModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden p-5 space-y-4">
+            <div class="flex justify-between items-center border-b pb-2">
                 <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                    <i data-lucide="calendar" class="w-4 h-4 text-emerald-600"></i>
-                    Tandakan Tarikh Hafalan / Tasmik
+                    <i class="fa-regular fa-calendar-check text-teal-600"></i> Tandakan Tarikh Hafalan
                 </h3>
-                <button onclick="closeDateModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
-                    <i data-lucide="x" class="w-4 h-4"></i>
+                <button onclick="closeDateModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <div class="space-y-3">
+            <div class="space-y-3 text-xs">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1" id="modalTopicTitle">Topik & Bab</label>
-                    <input type="date" id="modalDatePicker" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 focus:outline-none font-medium">
+                    <label id="modalItemTitle" class="font-semibold text-slate-700 block mb-1">Topik Hafalan</label>
+                    <input type="date" id="dateInput" class="w-full p-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none focus:border-teal-500">
                 </div>
-
                 <div class="flex gap-2">
-                    <button onclick="setTodayDate()" class="flex-1 py-1.5 px-3 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg font-medium transition">
+                    <button onclick="setTodayDate()" class="w-1/2 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-xl font-semibold border border-teal-200">
                         Hari Ini
                     </button>
-                    <button onclick="clearDateAndUncheck()" class="flex-1 py-1.5 px-3 text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-medium transition">
+                    <button onclick="clearMemorization()" class="w-1/2 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-semibold border border-rose-200">
                         Batal Hafal
                     </button>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                <button onclick="closeDateModal()" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg">Batal</button>
-                <button onclick="saveDateSelection()" class="px-4 py-1.5 text-xs bg-brand-600 text-white font-semibold rounded-lg hover:bg-brand-700 shadow-sm transition">Simpan Tarikh</button>
+            <div class="flex justify-end gap-2 border-t pt-3">
+                <button onclick="closeDateModal()" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Batal</button>
+                <button onclick="confirmDateSave()" class="px-4 py-1.5 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm">Simpan Tarikh</button>
             </div>
         </div>
     </div>
 
-    <!-- Firebase Sync & Config Modal -->
-    <div id="syncModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden no-print">
-        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-md w-full p-6 space-y-4">
-            <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-                    <i data-lucide="cloud-cog" class="w-5 h-5 text-brand-600"></i>
-                    Tetapan Awan & Sync Pelbagai Peranti
-                </h3>
-                <button onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-
-            <div class="text-xs text-slate-600 space-y-2">
-                <p>Data hafalan dikemaskini secara langsung melalui pangkalan data awan (Firebase Firestore). Guru dan pelajar dari peranti berbeza akan melihat kemaskini yang sama secara automatik.</p>
-                <div class="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-amber-800 flex gap-2 items-start">
-                    <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5 text-amber-600"></i>
-                    <span>Eksport atau simpan fail sandaran JSON jika anda mahu memindahkan data secara manual tanpa talian.</span>
-                </div>
-            </div>
-
-            <div class="space-y-3 pt-2">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Status Pangkalan Data</label>
-                    <div id="syncStatusBadge" class="p-2.5 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-medium border border-emerald-200 flex items-center gap-2">
-                        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
-                        <span id="syncModalStatusText">Penyelarasan Awan Aktif (Realtime Firestore)</span>
-                    </div>
-                </div>
-
-                <!-- Backup Export/Import Buttons -->
-                <div class="pt-2 border-t border-slate-100 flex gap-2">
-                    <button onclick="exportDataJSON()" class="flex-1 py-2 px-3 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg flex items-center justify-center gap-1.5 transition">
-                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                        Eksport JSON
-                    </button>
-                    <label class="flex-1 py-2 px-3 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg flex items-center justify-center gap-1.5 transition cursor-pointer">
-                        <i data-lucide="upload" class="w-3.5 h-3.5"></i>
-                        Import JSON
-                        <input type="file" id="importFileInput" onchange="importDataJSON(event)" accept=".json" class="hidden">
-                    </label>
-                </div>
-            </div>
-
-            <div class="flex justify-between items-center pt-3 border-t border-slate-100">
-                <button onclick="resetDataToDefault()" class="text-xs text-rose-600 hover:underline font-medium">Reset Data Asal</button>
-                <button onclick="closeSyncModal()" class="px-4 py-1.5 text-xs bg-slate-800 text-white font-semibold rounded-lg hover:bg-slate-900 transition">Tutup</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Notification Toast Container -->
-    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none no-print"></div>
-
+    <!-- JavaScript App Logic -->
     <script>
-        // Global Application State
-        let students = [...INITIAL_STUDENTS];
-        let currentStudentId = "std_1";
-        let activeFilter = "all"; // all, completed, pending
-        let currentView = "single"; // single, overview
-        let userRole = "student"; // student, teacher
+        const studentNames = [
+            "AREEFA DALILA BINTI SHARUL AZLAN",
+            "FAIROZ SYAHMI BIN MOHD ZAIDI",
+            "MUIZ ZAMAN BIN MOHAMAD ZAKI",
+            "NOR QAMIELIEYA BINTI AMRAN",
+            "NUR AUNI SYAZWINA BINTI MOHD AZRIL",
+            "NUR IZZATI UMAIRA BINTI ABDULLAH",
+            "QAMIEYL IYQRAM ASZRIN BIN ABDULLAH"
+        ];
 
-        // Storage schema: { studentId: { chapterId_colId: "YYYY-MM-DD" | true } }
-        window.memorizationData = {};
+        const chapters = [
+            { id: 'bai', name: "Al-Bai' (Jual Beli)", arabic: "البيع", required: ['takrif', 'dalil', 'anwa', 'rukun', 'syarat'] },
+            { id: 'riba', name: "Al-Riba", arabic: "الربا", required: ['takrif', 'dalil', 'ahkam', 'anwa', 'syarat'] },
+            { id: 'khiyar', name: "Al-Khiyar", arabic: "الخيار", required: ['anwa'] },
+            { id: 'salam', name: "Al-Salam", arabic: "الاسم", required: ['takrif', 'dalil', 'rukun', 'syarat'] },
+            { id: 'rahn', name: "Al-Rahn (Cagaran / Gadai)", arabic: "الرهن", required: ['takrif', 'dalil', 'ahkam', 'rukun', 'syarat'] },
+            { id: 'dhaman', name: "Al-Dhaman (Jaminan)", arabic: "الضمان", required: ['takrif', 'dalil', 'ahkam', 'rukun', 'syarat'] },
+            { id: 'wakalah', name: "Al-Wakalah (Wakil)", arabic: "الوكالة", required: ['takrif', 'dalil', 'ahkam', 'rukun', 'syarat'] },
+            { id: 'qiradh', name: "Al-Qiradh (Pelaburan / Mudharabah)", arabic: "القراض", required: ['takrif', 'dalil', 'ahkam', 'rukun', 'syarat'] }
+        ];
 
-        // Active modal edit state
-        let activeEditCell = null; // { studentId, chapterId, colId }
+        const columns = [
+            { key: 'takrif', label: 'TAKRIF' },
+            { key: 'dalil', label: 'DALIL' },
+            { key: 'ahkam', label: 'HUKUM' },
+            { key: 'anwa', label: 'JENIS' },
+            { key: 'rukun', label: 'RUKUN' },
+            { key: 'syarat', label: 'SYARAT' }
+        ];
 
-        // Initialize Application
-        window.onload = function() {
-            lucide.createIcons();
-            loadSavedData();
-            renderAllViews();
-        };
+        let currentRole = 'student';
+        let selectedStudentIndex = 0;
+        let activeTarget = null;
+        let memorizationData = {};
 
-        window.renderAllViews = function() {
-            renderStudentList();
-            renderMatrixTable();
-            renderOverviewTable();
-            updateHeaderStats();
-            updateKPIStats();
-            lucide.createIcons();
-        };
-
-        // User Role Switcher
-        function setUserRole(role) {
-            userRole = role;
-            const studentBtn = document.getElementById('roleStudentBtn');
-            const teacherBtn = document.getElementById('roleTeacherBtn');
-            const roleBadge = document.getElementById('userRoleBadge');
-
-            if (role === 'teacher') {
-                studentBtn.className = "px-2.5 py-1 rounded-md transition flex items-center gap-1 text-slate-600 hover:text-slate-900";
-                teacherBtn.className = "px-2.5 py-1 rounded-md transition flex items-center gap-1 bg-white text-slate-800 shadow-xs font-bold";
-                if (roleBadge) {
-                    roleBadge.innerText = "Mod Guru / Penilai";
-                    roleBadge.className = "text-[10px] bg-mint-50 text-mint-700 border border-mint-200 px-2 py-0.5 rounded-full font-bold";
-                }
-                showToast("Ditukar ke Mod Guru / Tasmik", "info");
+        // Load Initial Data
+        function initApp() {
+            const saved = localStorage.getItem('hafalan_fiqh_data');
+            if (saved) {
+                memorizationData = JSON.parse(saved);
             } else {
-                teacherBtn.className = "px-2.5 py-1 rounded-md transition flex items-center gap-1 text-slate-600 hover:text-slate-900";
-                studentBtn.className = "px-2.5 py-1 rounded-md transition flex items-center gap-1 bg-white text-slate-800 shadow-xs font-bold";
-                if (roleBadge) {
-                    roleBadge.innerText = "Mod Pelajar";
-                    roleBadge.className = "text-[10px] bg-brand-50 text-brand-700 border border-brand-200 px-2 py-0.5 rounded-full font-bold";
-                }
-                showToast("Ditukar ke Mod Pelajar", "info");
+                studentNames.forEach((name, idx) => {
+                    memorizationData[idx] = {};
+                });
             }
-        }
-
-        // Local Storage / Persistence
-        function loadSavedData() {
-            try {
-                const stored = localStorage.getItem('fiqh_muamalat_hafalan_data');
-                if (stored) {
-                    window.memorizationData = JSON.parse(stored);
-                } else {
-                    window.memorizationData = {};
-                }
-            } catch (e) {
-                console.error("Failed to load local data", e);
-                window.memorizationData = {};
-            }
-        }
-
-        function saveCurrentData(showToastNotice = false) {
-            try {
-                localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(window.memorizationData));
-                localStorage.setItem('fiqh_muamalat_last_updated', new Date().toISOString());
-                
-                // Sync to Cloud if Firebase connected
-                if (window.saveDataToCloud) {
-                    window.saveDataToCloud(window.memorizationData);
-                }
-
-                if (showToastNotice) {
-                    showToast("Rekod hafalan berjaya disimpan!", "success");
-                }
-                
-                renderAllViews();
-            } catch (e) {
-                console.error("Save error:", e);
-                showToast("Ralat ketika menyimpan data.", "error");
-            }
-        }
-
-        // Student Selection and Search
-        function selectStudent(studentId) {
-            currentStudentId = studentId;
             renderStudentList();
-            renderMatrixTable();
-            updateHeaderStats();
-            if (currentView === 'overview') {
-                selectView('single');
-            }
+            renderMatrix();
+            updateDashboardHeader();
+        }
+
+        function switchRole(role) {
+            currentRole = role;
+            document.getElementById('roleStudentBtn').className = role === 'student' ? 'px-3 py-1.5 rounded-lg transition-all bg-white shadow-sm text-teal-700 font-semibold' : 'px-3 py-1.5 rounded-lg transition-all text-slate-600 hover:text-slate-900 font-semibold';
+            document.getElementById('roleTeacherBtn').className = role === 'teacher' ? 'px-3 py-1.5 rounded-lg transition-all bg-white shadow-sm text-teal-700 font-semibold' : 'px-3 py-1.5 rounded-lg transition-all text-slate-600 hover:text-slate-900 font-semibold';
+            document.getElementById('roleBadge').innerText = role === 'student' ? 'Mod Pelajar' : 'Mod Guru / Tasmik';
+            renderMatrix();
         }
 
         function filterStudents() {
-            const query = document.getElementById('searchStudent').value.toLowerCase();
+            const query = document.getElementById('searchInput').value.toLowerCase();
             renderStudentList(query);
         }
 
-        function renderStudentList(query = '') {
-            const listEl = document.getElementById('studentList');
-            if (!listEl) return;
-            listEl.innerHTML = '';
-
-            const filtered = students.filter(s => s.name.toLowerCase().includes(query));
-            document.getElementById('studentCount').innerText = students.length;
-
-            filtered.forEach(std => {
-                const isSelected = std.id === currentStudentId;
-                const stats = calculateStudentProgress(std.id);
-                
-                // Get initials
-                const nameParts = std.name.split(' ');
-                const initials = (nameParts[0][0] + (nameParts[1] ? nameParts[1][0] : '')).toUpperCase();
-
-                const btn = document.createElement('button');
-                btn.onclick = () => selectStudent(std.id);
-                btn.className = `w-full text-left p-2.5 rounded-xl transition flex items-center justify-between border ${
-                    isSelected 
-                        ? 'bg-brand-50/90 border-brand-300 text-brand-900 shadow-2xs font-semibold' 
-                        : 'bg-white hover:bg-slate-50 border-slate-100 text-slate-700'
-                }`;
-
-                btn.innerHTML = `
-                    <div class="flex items-center space-x-2.5 min-w-0 pr-2">
-                        <div class="w-8 h-8 rounded-lg ${isSelected ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600'} flex items-center justify-center font-bold text-xs shrink-0">
-                            ${initials}
-                        </div>
-                        <div class="min-w-0">
-                            <div class="text-xs truncate font-medium ${isSelected ? 'text-brand-900 font-bold' : 'text-slate-800'}">${std.name}</div>
-                            <div class="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                                <span>${stats.completed}/${stats.total} hafal</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="text-right shrink-0">
-                        <span class="text-xs font-bold ${stats.pct === 100 ? 'text-emerald-600' : isSelected ? 'text-brand-600' : 'text-slate-500'}">
-                            ${stats.pct}%
-                        </span>
-                    </div>
-                `;
-                listEl.appendChild(btn);
-            });
-
-            // Update Class Average Stats
-            updateClassAverage();
+        function getStudentInitials(name) {
+            return name.split(' ').map(n => n[0]).slice(0, 2).join('');
         }
 
-        function calculateStudentProgress(studentId) {
-            const studentRecords = window.memorizationData[studentId] || {};
-            let completed = 0;
-
-            CURRICULUM.chapters.forEach(ch => {
-                Object.keys(ch.requirements).forEach(colId => {
-                    const isRequired = ch.requirements[colId];
-                    if (isRequired) {
-                        const key = `${ch.id}_${colId}`;
-                        if (studentRecords[key]) {
-                            completed++;
-                        }
-                    }
+        function calculateStudentProgress(studentIdx) {
+            const records = memorizationData[studentIdx] || {};
+            let count = 0;
+            chapters.forEach(c => {
+                c.required.forEach(col => {
+                    if (records[`${c.id}_${col}`]) count++;
                 });
             });
-
-            const pct = totalMandatoryItems > 0 ? Math.round((completed / totalMandatoryItems) * 100) : 0;
-            return { completed, total: totalMandatoryItems, pct };
+            return { count, total: 35, percentage: Math.round((count / 35) * 100) };
         }
 
-        function updateClassAverage() {
-            let totalPctSum = 0;
-            students.forEach(s => {
-                const stats = calculateStudentProgress(s.id);
-                totalPctSum += stats.pct;
+        function renderStudentList(query = '') {
+            const container = document.getElementById('studentList');
+            container.innerHTML = '';
+
+            studentNames.forEach((name, idx) => {
+                if (query && !name.toLowerCase().includes(query)) return;
+
+                const prog = calculateStudentProgress(idx);
+                const isSelected = idx === selectedStudentIndex;
+
+                const card = document.createElement('div');
+                card.onclick = () => selectStudent(idx);
+                card.className = `p-2.5 rounded-xl border cursor-pointer transition-all flex items-center gap-3 ${
+                    isSelected 
+                    ? 'bg-teal-50 border-teal-300 text-teal-800 shadow-sm' 
+                    : 'bg-white border-slate-100 hover:border-slate-300 text-slate-700'
+                }`;
+
+                card.innerHTML = `
+                    <div class="w-8 h-8 rounded-lg ${isSelected ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'} font-bold text-xs flex items-center justify-center shrink-0">
+                        ${getStudentInitials(name)}
+                    </div>
+                    <div class="overflow-hidden flex-1">
+                        <h4 class="font-semibold text-xs truncate leading-snug">${name}</h4>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500 mt-0.5">
+                            <span>${prog.count}/35 hafal</span>
+                            <span class="font-bold text-teal-600">${prog.percentage}%</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
             });
-            const avg = students.length > 0 ? Math.round(totalPctSum / students.length) : 0;
-            document.getElementById('classAveragePct').innerText = `${avg}%`;
-            document.getElementById('classAverageBar').style.width = `${avg}%`;
+
+            document.getElementById('totalStudentsCount').innerText = studentNames.length;
         }
 
-        function updateKPIStats() {
-            let totalPctSum = 0;
-            let totalMemorizedItemsSum = 0;
-            let completedCount = 0;
-            let topStudent = { name: "--", pct: -1 };
-
-            students.forEach(s => {
-                const stats = calculateStudentProgress(s.id);
-                totalPctSum += stats.pct;
-                totalMemorizedItemsSum += stats.completed;
-                if (stats.pct === 100) completedCount++;
-
-                if (stats.pct > topStudent.pct) {
-                    topStudent = { name: s.name, pct: stats.pct };
-                }
-            });
-
-            const avgPct = students.length > 0 ? Math.round(totalPctSum / students.length) : 0;
-            
-            document.getElementById('kpiClassAverage').innerText = `${avgPct}%`;
-            document.getElementById('kpiTotalMemorized').innerText = `${totalMemorizedItemsSum} / ${totalMandatoryItems * students.length}`;
-            document.getElementById('kpiCompletedStudents').innerText = `${completedCount} / ${students.length}`;
-            document.getElementById('kpiTopStudent').innerText = topStudent.pct > 0 ? `${topStudent.name.split(' ')[0]} (${topStudent.pct}%)` : '--';
+        function selectStudent(idx) {
+            selectedStudentIndex = idx;
+            renderStudentList(document.getElementById('searchInput').value.toLowerCase());
+            renderMatrix();
+            updateDashboardHeader();
         }
 
-        function updateHeaderStats() {
-            const std = students.find(s => s.id === currentStudentId) || students[0];
-            const stats = calculateStudentProgress(std.id);
+        function updateDashboardHeader() {
+            const name = studentNames[selectedStudentIndex];
+            const prog = calculateStudentProgress(selectedStudentIndex);
 
-            // Avatar Initials
-            const nameParts = std.name.split(' ');
-            const initials = (nameParts[0][0] + (nameParts[1] ? nameParts[1][0] : '')).toUpperCase();
-            document.getElementById('studentAvatar').innerText = initials;
-
-            document.getElementById('studentNameDisplay').innerText = std.name;
-            document.getElementById('studentScoreText').innerText = stats.completed;
-            document.getElementById('totalRequiredText').innerText = stats.total;
-            document.getElementById('studentPctText').innerText = `${stats.pct}%`;
-            document.getElementById('studentPctBarText').innerText = `${stats.pct}% Selesai`;
-            document.getElementById('studentProgressBar').style.width = `${stats.pct}%`;
-
-            // SVG Circular Progress offset calculations
-            const circumference = 2 * Math.PI * 22; // r=22 -> ~138.2
-            const offset = circumference - (stats.pct / 100) * circumference;
-            document.getElementById('progressCircle').style.strokeDashoffset = offset;
-
-            // Last updated timestamp
-            const lastUpdated = localStorage.getItem('fiqh_muamalat_last_updated');
-            if (lastUpdated) {
-                const dt = new Date(lastUpdated);
-                document.getElementById('lastUpdatedText').innerText = `Kemaskini: ${dt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}, ${dt.toLocaleDateString('ms-MY')}`;
-            }
+            document.getElementById('selectedStudentName').innerText = name;
+            document.getElementById('studentAvatar').innerText = getStudentInitials(name);
+            document.getElementById('totalHafalCountText').innerText = `${prog.count} / 35`;
+            document.getElementById('progressPercentageText').innerText = `${prog.percentage}%`;
+            document.getElementById('progressCircle').setAttribute('stroke-dasharray', `${prog.percentage}, 100`);
         }
 
-        // Rendering Matrix Table
-        function renderMatrixTable() {
+        function renderMatrix() {
             const tbody = document.getElementById('matrixTableBody');
-            if (!tbody) return;
             tbody.innerHTML = '';
+            const records = memorizationData[selectedStudentIndex] || {};
 
-            const studentRecords = window.memorizationData[currentStudentId] || {};
-
-            CURRICULUM.chapters.forEach(ch => {
-                const row = document.createElement('tr');
-                row.className = "hover:bg-slate-50/80 transition border-b border-slate-100";
+            chapters.forEach(chap => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition-all';
 
                 let rowHtml = `
-                    <td class="p-3 pl-4 font-semibold text-slate-800">
-                        <div class="text-xs font-bold text-slate-800">${ch.nameMalay}</div>
-                        <div class="font-arabic text-xs text-brand-700 font-bold mt-0.5">${ch.nameArabic}</div>
+                    <td class="p-3 border-r border-slate-100 bg-slate-50/50">
+                        <div class="font-bold text-slate-800">${chap.name}</div>
+                        <div class="text-[10px] text-teal-700 font-semibold">${chap.arabic}</div>
                     </td>
                 `;
 
-                CURRICULUM.columns.forEach(col => {
-                    const colId = col.id;
-                    const isRequired = ch.requirements[colId]; // true if '/', false if 'X'
-                    const key = `${ch.id}_${colId}`;
-                    const val = studentRecords[key]; // string Date or boolean true if completed
-
-                    // Filter condition check
-                    let filterHide = false;
-                    if (activeFilter === 'completed' && (!isRequired || !val)) filterHide = true;
-                    if (activeFilter === 'pending' && (!isRequired || val)) filterHide = true;
+                columns.forEach(col => {
+                    const isRequired = chap.required.includes(col.key);
+                    const cellKey = `${chap.id}_${col.key}`;
+                    const dateValue = records[cellKey];
 
                     if (!isRequired) {
-                        // EXEMPT / NOT REQUIRED ('X') -> Greyed out & Disabled
                         rowHtml += `
-                            <td class="p-2 text-center border-l border-slate-100 bg-slate-100/70 select-none">
-                                <div class="inline-flex items-center justify-center w-full h-10 rounded-lg bg-slate-200/50 border border-slate-200/60 text-slate-400 cursor-not-allowed text-[11px] font-medium gap-1" title="Tidak Wajib Hafal (Dikecualikan)">
-                                    <i data-lucide="lock" class="w-3.5 h-3.5 text-slate-400"></i>
-                                    <span class="hidden sm:inline text-[10px] text-slate-400">Tidak Wajib</span>
-                                </div>
+                            <td class="p-2 text-center bg-slate-100/50 border-r border-slate-100 text-slate-400">
+                                <span class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                                    <i class="fa-solid fa-lock text-[10px]"></i> Tidak Wajib
+                                </span>
+                            </td>
+                        `;
+                    } else if (dateValue) {
+                        rowHtml += `
+                            <td class="p-2 text-center border-r border-slate-100">
+                                <button onclick="openDateModal('${chap.id}', '${col.key}', '${chap.name} - ${col.label}')" 
+                                    class="w-full py-2 px-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl transition-all flex flex-col items-center justify-center gap-0.5 shadow-sm">
+                                    <span class="text-[11px] font-bold flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-check text-emerald-600"></i> Hafal
+                                    </span>
+                                    <span class="text-[9px] font-mono text-emerald-600">${dateValue}</span>
+                                </button>
                             </td>
                         `;
                     } else {
-                        // MANDATORY ('/') -> Can be checked & dated
-                        if (val) {
-                            // Completed state
-                            const dateDisplay = typeof val === 'string' ? val : 'Telah Hafal';
-                            rowHtml += `
-                                <td class="p-2 text-center border-l border-slate-100">
-                                    <button onclick="openDateModal('${currentStudentId}', '${ch.id}', '${colId}', '${ch.nameMalay} - ${col.nameMalay}')" 
-                                        class="w-full h-10 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 transition flex flex-col items-center justify-center shadow-2xs group">
-                                        <div class="flex items-center gap-1 font-bold text-xs text-emerald-700">
-                                            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 fill-emerald-100"></i>
-                                            <span>Hafal</span>
-                                        </div>
-                                        <div class="text-[9px] text-emerald-600 font-medium">${dateDisplay}</div>
-                                    </button>
-                                </td>
-                            `;
-                        } else {
-                            // Pending mandatory state (Red cross icon badge)
-                            rowHtml += `
-                                <td class="p-2 text-center border-l border-slate-100">
-                                    <button onclick="openDateModal('${currentStudentId}', '${ch.id}', '${colId}', '${ch.nameMalay} - ${col.nameMalay}')" 
-                                        class="w-full h-10 px-2 rounded-lg bg-rose-50/50 hover:bg-rose-100/80 border border-rose-200 text-rose-600 hover:text-rose-700 transition flex items-center justify-center gap-1.5 group">
-                                        <i data-lucide="x" class="w-4 h-4 text-rose-400 group-hover:text-rose-600"></i>
-                                        <span class="text-[11px] font-medium hidden sm:inline">Belum</span>
-                                    </button>
-                                </td>
-                            `;
-                        }
+                        rowHtml += `
+                            <td class="p-2 text-center border-r border-slate-100">
+                                <button onclick="openDateModal('${chap.id}', '${col.key}', '${chap.name} - ${col.label}')" 
+                                    class="w-full py-2 px-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 rounded-xl transition-all flex items-center justify-center gap-1 shadow-sm">
+                                    <i class="fa-solid fa-xmark text-rose-500"></i>
+                                    <span class="text-[11px] font-bold">Belum</span>
+                                </button>
+                            </td>
+                        `;
                     }
                 });
 
-                row.innerHTML = rowHtml;
-                tbody.appendChild(row);
+                tr.innerHTML = rowHtml;
+                tbody.appendChild(tr);
             });
-
-            lucide.createIcons();
         }
 
-        // Date Modal Logic
-        function openDateModal(studentId, chapterId, colId, topicName) {
-            activeEditCell = { studentId, chapterId, colId };
-            document.getElementById('modalTopicTitle').innerText = topicName;
-            
-            const key = `${chapterId}_${colId}`;
-            const existingVal = (window.memorizationData[studentId] || {})[key];
-
-            const datePicker = document.getElementById('modalDatePicker');
-            if (typeof existingVal === 'string' && existingVal.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                datePicker.value = existingVal;
-            } else {
-                // Default to today
-                const today = new Date().toISOString().split('T')[0];
-                datePicker.value = today;
-            }
-
+        function openDateModal(chapId, colKey, label) {
+            activeTarget = { chapId, colKey };
+            document.getElementById('modalItemTitle').innerText = label;
+            const existing = (memorizationData[selectedStudentIndex] || {})[`${chapId}_${colKey}`];
+            document.getElementById('dateInput').value = existing || new Date().toISOString().split('T')[0];
             document.getElementById('dateModal').classList.remove('hidden');
         }
 
         function closeDateModal() {
             document.getElementById('dateModal').classList.add('hidden');
-            activeEditCell = null;
+            activeTarget = null;
         }
 
         function setTodayDate() {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('modalDatePicker').value = today;
+            document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
         }
 
-        function saveDateSelection() {
-            if (!activeEditCell) return;
-            const { studentId, chapterId, colId } = activeEditCell;
-            const selectedDate = document.getElementById('modalDatePicker').value || new Date().toISOString().split('T')[0];
+        function confirmDateSave() {
+            if (!activeTarget) return;
+            const dateVal = document.getElementById('dateInput').value;
+            if (!dateVal) return alert('Sila pilih tarikh hafalan.');
 
-            if (!window.memorizationData[studentId]) {
-                window.memorizationData[studentId] = {};
-            }
+            if (!memorizationData[selectedStudentIndex]) memorizationData[selectedStudentIndex] = {};
+            memorizationData[selectedStudentIndex][`${activeTarget.chapId}_${activeTarget.colKey}`] = dateVal;
 
-            const key = `${chapterId}_${colId}`;
-            window.memorizationData[studentId][key] = selectedDate;
-
-            saveCurrentData(false);
             closeDateModal();
-            showToast("Tarikh hafalan berjaya direkodkan!", "success");
+            renderMatrix();
+            renderStudentList(document.getElementById('searchInput').value.toLowerCase());
+            updateDashboardHeader();
         }
 
-        function clearDateAndUncheck() {
-            if (!activeEditCell) return;
-            const { studentId, chapterId, colId } = activeEditCell;
-
-            if (window.memorizationData[studentId]) {
-                const key = `${chapterId}_${colId}`;
-                delete window.memorizationData[studentId][key];
+        function clearMemorization() {
+            if (!activeTarget) return;
+            if (memorizationData[selectedStudentIndex]) {
+                delete memorizationData[selectedStudentIndex][`${activeTarget.chapId}_${activeTarget.colKey}`];
             }
-
-            saveCurrentData(false);
             closeDateModal();
-            showToast("Status hafalan dibatalkan.", "info");
+            renderMatrix();
+            renderStudentList(document.getElementById('searchInput').value.toLowerCase());
+            updateDashboardHeader();
         }
 
-        // Filter Controls
-        function setFilter(type) {
-            activeFilter = type;
-            ['All', 'Completed', 'Pending'].forEach(t => {
-                const btn = document.getElementById(`filter${t}`);
-                if (btn) {
-                    if (t.toLowerCase() === type) {
-                        btn.className = "px-2.5 py-1 rounded-md font-medium bg-white text-slate-800 shadow-xs";
-                    } else {
-                        btn.className = "px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900";
-                    }
-                }
-            });
-            renderMatrixTable();
+        function saveAllData() {
+            localStorage.setItem('hafalan_fiqh_data', JSON.stringify(memorizationData));
+            alert('Rekod hafalan berjaya disimpan!');
         }
 
-        // View Switching (Single vs Overview Matrix)
-        function selectView(view) {
-            currentView = view;
-            const matrixCont = document.getElementById('matrixViewContainer');
-            const overviewCont = document.getElementById('overviewContainer');
-            const filterBar = document.getElementById('matrixFilterBar');
-
-            if (view === 'overview') {
-                matrixCont.classList.add('hidden');
-                filterBar.classList.add('hidden');
-                overviewCont.classList.remove('hidden');
-                renderOverviewTable();
-            } else {
-                overviewCont.classList.add('hidden');
-                matrixCont.classList.remove('hidden');
-                filterBar.classList.remove('hidden');
-            }
+        function triggerPrintModal() {
+            document.getElementById('printModal').classList.remove('hidden');
         }
 
-        function renderOverviewTable() {
-            const tbody = document.getElementById('overviewTableBody');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            students.forEach(std => {
-                const stats = calculateStudentProgress(std.id);
-                const studentRecords = window.memorizationData[std.id] || {};
-
-                const row = document.createElement('tr');
-                row.className = "hover:bg-slate-50 transition border-b border-slate-100";
-
-                let rowHtml = `
-                    <td class="p-3 pl-4 font-semibold text-slate-800 sticky left-0 bg-white shadow-2xs z-10">
-                        <button onclick="selectStudent('${std.id}')" class="text-left hover:text-brand-600 font-bold text-xs truncate max-w-[190px] block">
-                            ${std.name}
-                        </button>
-                    </td>
-                    <td class="p-2 text-center font-bold text-xs ${stats.pct === 100 ? 'text-emerald-600' : 'text-slate-700'}">
-                        ${stats.pct}%
-                    </td>
-                `;
-
-                CURRICULUM.chapters.forEach(ch => {
-                    let chMandatoryCount = 0;
-                    let chCompletedCount = 0;
-
-                    Object.keys(ch.requirements).forEach(colId => {
-                        if (ch.requirements[colId]) {
-                            chMandatoryCount++;
-                            const key = `${ch.id}_${colId}`;
-                            if (studentRecords[key]) chCompletedCount++;
-                        }
-                    });
-
-                    const isAllDone = chMandatoryCount > 0 && chCompletedCount === chMandatoryCount;
-                    const isPartial = chCompletedCount > 0 && !isAllDone;
-
-                    rowHtml += `
-                        <td class="p-2 text-center border-l border-slate-100">
-                            <span class="inline-flex items-center justify-center px-2 py-1 rounded-md text-[10px] font-bold ${
-                                isAllDone 
-                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
-                                    : isPartial 
-                                        ? 'bg-amber-100 text-amber-800 border border-amber-200' 
-                                        : 'bg-slate-100 text-slate-400'
-                            }">
-                                ${chCompletedCount}/${chMandatoryCount}
-                            </span>
-                        </td>
-                    `;
-                });
-
-                row.innerHTML = rowHtml;
-                tbody.appendChild(row);
-            });
+        function closePrintModal() {
+            document.getElementById('printModal').classList.add('hidden');
         }
 
-        // Sync Modal & Import/Export
-        function openSyncModal() {
-            document.getElementById('syncModal').classList.remove('hidden');
-        }
-
-        function closeSyncModal() {
-            document.getElementById('syncModal').classList.add('hidden');
-        }
-
-        function exportDataJSON() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.memorizationData, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `Fiqh_Muamalat_Hafalan_${new Date().toISOString().split('T')[0]}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-            showToast("Fail JSON berjaya dieksport!", "success");
-        }
-
-        function importDataJSON(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    if (typeof parsed === 'object') {
-                        window.memorizationData = parsed;
-                        saveCurrentData(false);
-                        showToast("Data berjaya diimport!", "success");
-                        closeSyncModal();
-                    } else {
-                        throw new Error("Format JSON tidak sah");
-                    }
-                } catch (err) {
-                    showToast("Ralat membaca fail JSON.", "error");
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        function resetDataToDefault() {
-            if (confirm("Adakah anda pasti untuk menderetkan semula semua rekod hafalan? Tindakan ini tidak boleh diundur.")) {
-                window.memorizationData = {};
-                saveCurrentData(false);
-                closeSyncModal();
-                showToast("Data telah ditetapkan semula.", "info");
-            }
-        }
-
-        // Print Helper
-        function triggerPrint() {
+        function executePrint() {
+            closePrintModal();
             window.print();
         }
 
-        // Toast Notifications
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toastContainer');
-            if (!container) return;
-            const toast = document.createElement('div');
-
-            const bgClass = type === 'success' ? 'bg-emerald-800 text-white' : type === 'error' ? 'bg-rose-800 text-white' : 'bg-slate-800 text-white';
-            
-            toast.className = `px-4 py-2.5 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto ${bgClass}`;
-            toast.innerHTML = `
-                <i data-lucide="${type === 'success' ? 'check-circle-2' : type === 'error' ? 'alert-circle' : 'info'}" class="w-4 h-4 shrink-0"></i>
-                <span>${message}</span>
-            `;
-
-            container.appendChild(toast);
-            lucide.createIcons();
-
-            setTimeout(() => {
-                toast.classList.remove('translate-y-2', 'opacity-0');
-            }, 10);
-
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-2');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
+        // Initialize on Load
+        window.onload = initApp;
     </script>
 </body>
 </html>
