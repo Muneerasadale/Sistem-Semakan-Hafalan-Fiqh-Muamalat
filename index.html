@@ -43,6 +43,85 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
+    <!-- FIREBASE REALTIME ENGINE WITH YOUR CONFIG -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // CONFIG FIREBASE ANDA
+        const firebaseConfig = {
+            apiKey: "AIzaSyDJBv0e6ik99YTADgjG9CwK1oexJ18_me4",
+            authDomain: "hafalan-fiqh-muamalat.firebaseapp.com",
+            projectId: "hafalan-fiqh-muamalat",
+            storageBucket: "hafalan-fiqh-muamalat.firebasestorage.app",
+            messagingSenderId: "19181599786",
+            appId: "1:19181599786:web:cb47b797fb6b11b7aa5753",
+            measurementId: "G-2TYVS2WBXN"
+        };
+
+        window.db = null;
+        window.isCloudConnected = false;
+
+        async function initFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                window.db = getFirestore(app);
+                await signInAnonymously(auth);
+
+                window.isCloudConnected = true;
+                updateCloudStatusUI(true, "Terhubung Awan (Real-time)");
+                setupRealtimeListener();
+            } catch (err) {
+                console.error("Firebase Error:", err);
+                updateCloudStatusUI(false, "Mod Tempatan");
+            }
+        }
+
+        // SETIAP KALI TERDIRI DARIPADA PENGGUNA BERBEZA ISI, DATA TERUS REFRESH AUTOMATIK
+        function setupRealtimeListener() {
+            if (!window.db) return;
+            const docRef = doc(window.db, 'hafalan_records', 'main_data');
+
+            onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const cloudData = docSnap.data().records || {};
+                    window.memorizationData = cloudData;
+                    localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(cloudData));
+                    if (window.renderAllViews) window.renderAllViews();
+                }
+            }, (err) => console.error("Sync error:", err));
+        }
+
+        window.saveDataToCloud = async function(data, showAlert = false) {
+            localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(data));
+            if (!window.db || !window.isCloudConnected) {
+                if (showAlert) alert("Data disimpan pada peranti ini. Pastikan anda aktifkan Firestore di Firebase Console.");
+                return;
+            }
+            try {
+                const docRef = doc(window.db, 'hafalan_records', 'main_data');
+                await setDoc(docRef, { records: data, lastUpdated: new Date().toISOString() }, { merge: true });
+                if (showAlert) {
+                    alert("BERJAYA SIMPAN KE AWAN! Semua murid & guru dari mana-mana telefon/komputer kini boleh melihat data ini secara live.");
+                }
+            } catch (err) {
+                console.error("Save error:", err);
+                if (showAlert) alert("Gagal menyimpan ke Awan. Sila pastikan Firestore di Firebase sudah diaktifkan.");
+            }
+        };
+
+        function updateCloudStatusUI(connected, text) {
+            const dot = document.getElementById('cloudStatusDot');
+            const statusText = document.getElementById('cloudStatusText');
+            if (dot) dot.className = connected ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse" : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block";
+            if (statusText) statusText.innerText = text;
+        }
+
+        window.addEventListener('load', initFirebase);
+    </script>
+
     <!-- Header App -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -57,15 +136,14 @@
             </div>
 
             <div class="flex items-center space-x-2 sm:space-x-3">
-                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
-                    <span id="syncDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                    <span id="syncStatusText">Awan Berpusat</span>
+                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-semibold text-slate-700">
+                    <span id="cloudStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
+                    <span id="cloudStatusText">Menyambung...</span>
                 </div>
 
-                <!-- BUTANG HANTAR/SYNC KE AWAN -->
-                <button onclick="uploadDataToCloud(true)" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white shadow-sm hover:shadow transition flex items-center gap-1.5">
-                    <i data-lucide="upload-cloud" class="w-4 h-4"></i>
-                    <span>Simpan Ke Awan</span>
+                <button onclick="saveCurrentData(true)" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white shadow-sm transition flex items-center gap-1.5">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    <span>Simpan</span>
                 </button>
 
                 <button onclick="openPrintChoiceModal()" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5">
@@ -172,12 +250,8 @@
         </div>
     </div>
 
-    <!-- LOGIK JAVASCRIPT AWAN AUTO-SYNC -->
+    <!-- LOGIK JAVASCRIPT UTAMA -->
     <script>
-        // PANGKALAN DATA AWAN BERPUSAT (KHAS FIQH MUAMALAT)
-        const BIN_ID = "661f0b091f5677401f56f1a8";
-        const API_KEY = "$2a$10$T8s.a5I2mC0S0SgC5c0oE.6J0V5V5V5V5V5V5V5V5V5V5V5V5V5V5";
-
         const CURRICULUM = {
             titleArabic: "فقه المعاملات", titleMalay: "Fiqh Muamalat",
             columns: [
@@ -222,66 +296,13 @@
         document.addEventListener('DOMContentLoaded', () => {
             renderHeaderColumns();
             renderAllViews();
-            downloadDataFromCloud();
             if (window.lucide) window.lucide.createIcons();
         });
 
-        // FUNGSI MEMBACA DATA TERKINI DARI AWAN
-        async function downloadDataFromCloud() {
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                    headers: { "X-Master-Key": API_KEY }
-                });
-                if (res.ok) {
-                    const result = await res.json();
-                    if (result.record && Object.keys(result.record).length > 0) {
-                        window.memorizationData = result.record;
-                        localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(result.record));
-                        renderAllViews();
-                        updateSyncUI(true, "Awan Terhubung");
-                    }
-                }
-            } catch (e) {
-                console.warn("Membaca dari simpanan peranti...");
+        function saveCurrentData(showNotice = false) {
+            if (window.saveDataToCloud) {
+                window.saveDataToCloud(window.memorizationData, showNotice);
             }
-        }
-
-        // FUNGSI MENGHANTAR DATA KE AWAN UNTUK DILIHAT OLEH SEMUA MURID
-        async function uploadDataToCloud(showAlert = false) {
-            localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(window.memorizationData));
-            updateSyncUI(false, "Menyimpan ke Awan...");
-
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Master-Key": API_KEY
-                    },
-                    body: JSON.stringify(window.memorizationData)
-                });
-
-                if (res.ok) {
-                    updateSyncUI(true, "Diselaraskan Ke Awan");
-                    if (showAlert) {
-                        alert("BERJAYA! Data hafalan telah dihantar ke Awan. Apabila murid muat semula laman web ini, dorg akan terus nampak data ini.");
-                    }
-                } else {
-                    throw new Error("Gagal");
-                }
-            } catch (e) {
-                updateSyncUI(true, "Disimpan (Mod Tempatan)");
-                if (showAlert) {
-                    alert("Data berjaya disimpan pada komputer anda.");
-                }
-            }
-        }
-
-        function updateSyncUI(statusOK, text) {
-            const dot = document.getElementById('syncDot');
-            const txt = document.getElementById('syncStatusText');
-            if (dot) dot.className = statusOK ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse" : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block";
-            if (txt) txt.innerText = text;
         }
 
         function renderHeaderColumns() {
@@ -294,10 +315,10 @@
             headerTr.innerHTML = html;
         }
 
-        function renderAllViews() {
+        window.renderAllViews = function() {
             renderStudentList();
             renderStudentMatrix();
-        }
+        };
 
         function getStudentStats(stdId) {
             const records = window.memorizationData[stdId] || {};
@@ -484,7 +505,7 @@
             
             closeDateModal();
             renderAllViews();
-            uploadDataToCloud(false);
+            saveCurrentData(false);
         }
 
         function formatDateShort(dateStr) {
