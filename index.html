@@ -57,17 +57,10 @@
             </div>
 
             <div class="flex items-center space-x-2 sm:space-x-3">
-                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
-                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                    <span id="syncStatusText">Diselaraskan (Awan)</span>
-                </div>
-
-                <!-- BUTANG SIMPAN DIKEMBALIKAN -->
-                <button onclick="saveCurrentData(true)" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white shadow-sm hover:shadow transition flex items-center gap-1.5">
-                    <i data-lucide="save" class="w-4 h-4"></i>
-                    <span>Simpan</span>
+                <button onclick="fetchDataFromGitHub()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    <span>Muat Semula Data</span>
                 </button>
-
                 <button onclick="openPrintChoiceModal()" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5">
                     <i data-lucide="printer" class="w-4 h-4"></i>
                     <span>Cetak Laporan</span>
@@ -169,14 +162,15 @@
             <input type="date" id="modalDatePicker" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
             <div class="flex justify-end gap-2">
                 <button onclick="closeDateModal()" class="px-3 py-1.5 text-xs text-slate-600">Batal</button>
-                <button onclick="saveDateSelection()" class="px-4 py-1.5 text-xs bg-brand-600 text-white font-semibold rounded-lg">Simpan Tarikh</button>
+                <button onclick="saveDateSelection()" class="px-4 py-1.5 text-xs bg-brand-600 text-white font-semibold rounded-lg">Simpan</button>
             </div>
         </div>
     </div>
 
-    <!-- LOGIK JAVASCRIPT UTAMA (AUTOMATIC CLOUD SYNC & MANUAL SAVE) -->
+    <!-- LOGIK JAVASCRIPT UTAMA -->
     <script>
-        const CLOUD_STORAGE_URL = "https://api.jsonbin.io/v3/b/66190a42e41b4d34e4e201b8";
+        const GITHUB_USERNAME = "muneerasadale";
+        const GITHUB_REPO = "Sistem-Semakan-Hafalan-Fiqh-Muamalat";
 
         const CURRICULUM = {
             titleArabic: "فقه المعاملات", titleMalay: "Fiqh Muamalat",
@@ -221,53 +215,22 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             renderHeaderColumns();
-            fetchDataFromCloud();
+            fetchDataFromGitHub();
             if (window.lucide) window.lucide.createIcons();
         });
 
-        // MUAT TURUN DATA DARI AWAN
-        async function fetchDataFromCloud() {
+        async function fetchDataFromGitHub() {
             try {
-                const response = await fetch(CLOUD_STORAGE_URL + "/latest", {
-                    headers: { "X-Master-Key": "$2a$10$w6xS9A/P5u5wPZ9E3L2A5e7yMv1pT" }
-                });
+                const url = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${GITHUB_REPO}/main/data.json?t=${new Date().getTime()}`;
+                const response = await fetch(url);
                 if (response.ok) {
-                    const result = await response.json();
-                    window.memorizationData = result.record || {};
-                    localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(window.memorizationData));
-                } else {
-                    window.memorizationData = JSON.parse(localStorage.getItem('fiqh_muamalat_hafalan_data')) || {};
+                    const data = await response.json();
+                    window.memorizationData = data;
                 }
-            } catch (e) {
-                window.memorizationData = JSON.parse(localStorage.getItem('fiqh_muamalat_hafalan_data')) || {};
+            } catch (err) {
+                console.warn("Gagal mengambil fail data.json");
             }
             renderAllViews();
-        }
-
-        // FUNGSI UTAMA BUTANG SIMPAN (MENYIMPAN DATA KE AWAN & MEMAKLUMKAN KEPADA PENGGUNA)
-        async function saveCurrentData(showNotice = false) {
-            localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(window.memorizationData));
-            document.getElementById('syncStatusText').innerText = "Menyimpan ke Awan...";
-            
-            try {
-                await fetch(CLOUD_STORAGE_URL, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Master-Key": "$2a$10$w6xS9A/P5u5wPZ9E3L2A5e7yMv1pT"
-                    },
-                    body: JSON.stringify(window.memorizationData)
-                });
-                document.getElementById('syncStatusText').innerText = "Diselaraskan (Awan)";
-                if (showNotice) {
-                    alert("Rekod hafalan berjaya disimpan ke Awan! Semua pelajar kini boleh melihat kemaskini ini.");
-                }
-            } catch (e) {
-                document.getElementById('syncStatusText').innerText = "Mod Tempatan";
-                if (showNotice) {
-                    alert("Rekod disimpan pada peranti tempatan. Sila semak sambungan internet anda.");
-                }
-            }
         }
 
         function renderHeaderColumns() {
@@ -468,7 +431,6 @@
             if (!window.memorizationData[stdId]) window.memorizationData[stdId] = {};
             window.memorizationData[stdId][`${chId}_${colId}`] = selectedDate;
             
-            saveCurrentData(false);
             closeDateModal();
             renderAllViews();
         }
