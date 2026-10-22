@@ -57,10 +57,17 @@
             </div>
 
             <div class="flex items-center space-x-2 sm:space-x-3">
-                <button onclick="fetchDataFromGitHub()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5">
+                <!-- INDIKATOR AUTO SYNC -->
+                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
+                    <span id="syncDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                    <span id="syncStatusText">Auto Sync (Awan Berpusat)</span>
+                </div>
+
+                <button onclick="fetchDataFromCloud()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5">
                     <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                    <span>Muat Semula Data</span>
+                    <span class="hidden sm:inline">Muat Semula</span>
                 </button>
+
                 <button onclick="openPrintChoiceModal()" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5">
                     <i data-lucide="printer" class="w-4 h-4"></i>
                     <span>Cetak Laporan</span>
@@ -71,7 +78,6 @@
 
     <!-- Main Workspace -->
     <div class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col md:flex-row gap-6 no-print">
-        <!-- Sidebar Senarai Pelajar -->
         <aside class="w-full md:w-80 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col shrink-0">
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
                 <i data-lucide="users" class="w-4 h-4 text-brand-600"></i>
@@ -80,7 +86,6 @@
             <div id="studentList" class="space-y-1.5 overflow-y-auto max-h-[500px] pr-1 flex-1"></div>
         </aside>
 
-        <!-- Main Content Matrix -->
         <main class="flex-1 flex flex-col gap-5 min-w-0">
             <div id="studentDetailHeader" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -162,15 +167,15 @@
             <input type="date" id="modalDatePicker" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
             <div class="flex justify-end gap-2">
                 <button onclick="closeDateModal()" class="px-3 py-1.5 text-xs text-slate-600">Batal</button>
-                <button onclick="saveDateSelection()" class="px-4 py-1.5 text-xs bg-brand-600 text-white font-semibold rounded-lg">Simpan</button>
+                <button onclick="saveDateSelection()" class="px-4 py-1.5 text-xs bg-brand-600 text-white font-semibold rounded-lg">Simpan & Auto Sync</button>
             </div>
         </div>
     </div>
 
-    <!-- LOGIK JAVASCRIPT UTAMA -->
+    <!-- LOGIK JAVASCRIPT AUTO-SYNC BERPUSAT -->
     <script>
-        const GITHUB_USERNAME = "muneerasadale";
-        const GITHUB_REPO = "Sistem-Semakan-Hafalan-Fiqh-Muamalat";
+        // PANGKALAN DATA AWAN UNIVERSIAL (BEBAS KUKI)
+        const CLOUD_STORAGE_URL = "https://api.npoint.io/469ef79bc4cb59d64821";
 
         const CURRICULUM = {
             titleArabic: "فقه المعاملات", titleMalay: "Fiqh Muamalat",
@@ -215,22 +220,55 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             renderHeaderColumns();
-            fetchDataFromGitHub();
+            fetchDataFromCloud();
+            // Semak kemaskini awan automatik setiap 5 saat
+            setInterval(fetchDataFromCloud, 5000);
             if (window.lucide) window.lucide.createIcons();
         });
 
-        async function fetchDataFromGitHub() {
+        // MUAT TURUN DATA KESELURUHAN DARI AWAN BERPUSAT
+        async function fetchDataFromCloud() {
             try {
-                const url = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${GITHUB_REPO}/main/data.json?t=${new Date().getTime()}`;
-                const response = await fetch(url);
+                const response = await fetch(CLOUD_STORAGE_URL);
                 if (response.ok) {
                     const data = await response.json();
-                    window.memorizationData = data;
+                    if (data && typeof data === 'object') {
+                        window.memorizationData = data;
+                        localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(data));
+                        updateStatusUI(true, "Auto Sync (Awan Berpusat)");
+                    }
                 }
-            } catch (err) {
-                console.warn("Gagal mengambil fail data.json");
+            } catch (e) {
+                window.memorizationData = JSON.parse(localStorage.getItem('fiqh_muamalat_hafalan_data')) || {};
+                updateStatusUI(false, "Mod Offline");
             }
             renderAllViews();
+        }
+
+        // HANTAR AUTO SYNC KE AWAN SEBAIK SAHAJA ISI
+        async function sendDataToCloud(data) {
+            updateStatusUI(true, "Menyimpan ke Awan...");
+            try {
+                await fetch(CLOUD_STORAGE_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data)
+                });
+                updateStatusUI(true, "Auto Sync (Awan Berpusat)");
+            } catch (e) {
+                updateStatusUI(false, "Gagal Sync Awan");
+            }
+        }
+
+        function updateStatusUI(success, text) {
+            const statusText = document.getElementById('syncStatusText');
+            const syncDot = document.getElementById('syncDot');
+            if (statusText) statusText.innerText = text;
+            if (syncDot) {
+                syncDot.className = success 
+                    ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse" 
+                    : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block";
+            }
         }
 
         function renderHeaderColumns() {
@@ -431,6 +469,9 @@
             if (!window.memorizationData[stdId]) window.memorizationData[stdId] = {};
             window.memorizationData[stdId][`${chId}_${colId}`] = selectedDate;
             
+            localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(window.memorizationData));
+            sendDataToCloud(window.memorizationData);
+
             closeDateModal();
             renderAllViews();
         }
