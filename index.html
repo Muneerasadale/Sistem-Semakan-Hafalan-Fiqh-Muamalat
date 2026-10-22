@@ -6,7 +6,7 @@
     <title>Sistem Semakan Hafalan Fiqh Muamalat</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter & Tajawal (Arabic) -->
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -43,84 +43,6 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
-    <!-- Firebase SDK (Version 11 CDN) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // SILA MASUKKAN MAKLUMAT FIREBASE ANDA DI SINI
-        const firebaseConfig = {
-            apiKey: "MASUKKAN_API_KEY_ANDA_DI_SINI",
-            authDomain: "MASUKKAN_PROJECT_ID.firebaseapp.com",
-            projectId: "MASUKKAN_PROJECT_ID",
-            storageBucket: "MASUKKAN_PROJECT_ID.appspot.com",
-            messagingSenderId: "MASUKKAN_SENDER_ID",
-            appId: "MASUKKAN_APP_ID"
-        };
-
-        window.db = null;
-        window.isCloudConnected = false;
-
-        async function initFirebase() {
-            if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("MASUKKAN_API_KEY")) {
-                console.warn("Firebase Config belum diisi. Menggunakan mod Tempatan (LocalStorage).");
-                updateCloudStatusUI(false, "Mod Tempatan (LocalStorage)");
-                return;
-            }
-
-            try {
-                const app = initializeApp(firebaseConfig);
-                const auth = getAuth(app);
-                window.db = getFirestore(app);
-                await signInAnonymously(auth);
-
-                window.isCloudConnected = true;
-                updateCloudStatusUI(true, "Terhubung ke Awan (Real-time)");
-                setupRealtimeListener();
-            } catch (err) {
-                console.error("Gagal menyambung ke Firebase:", err);
-                window.isCloudConnected = false;
-                updateCloudStatusUI(false, "Mod Tempatan (Ralat Sambungan)");
-            }
-        }
-
-        function setupRealtimeListener() {
-            if (!window.db) return;
-            const docRef = doc(window.db, 'hafalan_records', 'main_data');
-
-            onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const cloudData = docSnap.data().records || {};
-                    window.memorizationData = cloudData;
-                    localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(cloudData));
-                    if (window.renderAllViews) window.renderAllViews();
-                }
-            }, (err) => {
-                console.error("Ralat Sync Realtime:", err);
-            });
-        }
-
-        window.saveDataToCloud = async function(data) {
-            if (!window.db || !window.isCloudConnected) return;
-            try {
-                const docRef = doc(window.db, 'hafalan_records', 'main_data');
-                await setDoc(docRef, { records: data, lastUpdated: new Date().toISOString() }, { merge: true });
-            } catch (err) {
-                console.error("Gagal simpan ke Awan:", err);
-            }
-        };
-
-        function updateCloudStatusUI(connected, text) {
-            const dot = document.getElementById('cloudStatusDot');
-            const statusText = document.getElementById('cloudStatusText');
-            if (dot) dot.className = connected ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse" : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block";
-            if (statusText) statusText.innerText = text;
-        }
-
-        window.addEventListener('load', initFirebase);
-    </script>
-
     <!-- Header App -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -135,13 +57,9 @@
             </div>
 
             <div class="flex items-center space-x-2 sm:space-x-3">
-                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-semibold text-slate-700">
-                    <span id="cloudStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
-                    <span id="cloudStatusText">Mod Tempatan</span>
-                </div>
-                <button onclick="exportDataJSON()" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1">
-                    <i data-lucide="download" class="w-4 h-4"></i>
-                    <span>Eksport Backup</span>
+                <button onclick="fetchDataFromGitHub()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    <span>Muat Semula Data</span>
                 </button>
                 <button onclick="openPrintChoiceModal()" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5">
                     <i data-lucide="printer" class="w-4 h-4"></i>
@@ -153,6 +71,7 @@
 
     <!-- Main Workspace -->
     <div class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col md:flex-row gap-6 no-print">
+        <!-- Sidebar Senarai Pelajar -->
         <aside class="w-full md:w-80 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col shrink-0">
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
                 <i data-lucide="users" class="w-4 h-4 text-brand-600"></i>
@@ -161,6 +80,7 @@
             <div id="studentList" class="space-y-1.5 overflow-y-auto max-h-[500px] pr-1 flex-1"></div>
         </aside>
 
+        <!-- Main Content Matrix -->
         <main class="flex-1 flex flex-col gap-5 min-w-0">
             <div id="studentDetailHeader" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -247,8 +167,13 @@
         </div>
     </div>
 
-    <!-- LOGIK JAVASCRIPT UTAMA -->
+    <!-- LOGIK JAVASCRIPT UTAMA (DIRECT GITHUB REPO SYNC) -->
     <script>
+        // TETAPAN REPOSITORI GITHUB ANDA
+        const GITHUB_USERNAME = "muneerasadale";
+        const GITHUB_REPO = "Sistem-Semakan-Hafalan-Fiqh-Muamalat";
+        const DATA_FILE_PATH = "data.json";
+
         const CURRICULUM = {
             titleArabic: "فقه المعاملات", titleMalay: "Fiqh Muamalat",
             columns: [
@@ -288,13 +213,32 @@
 
         let currentStudentId = "std_1";
         let activeTargetCell = null;
-        window.memorizationData = JSON.parse(localStorage.getItem('fiqh_muamalat_hafalan_data')) || {};
+        window.memorizationData = {};
 
         document.addEventListener('DOMContentLoaded', () => {
             renderHeaderColumns();
-            renderAllViews();
+            fetchDataFromGitHub();
             if (window.lucide) window.lucide.createIcons();
         });
+
+        // FUNGSI MEMBACA DATA TERUS DARI GITHUB REPO
+        async function fetchDataFromGitHub() {
+            try {
+                const url = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${GITHUB_REPO}/main/${DATA_FILE_PATH}?t=${new Date().getTime()}`;
+                const response = await fetch(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    window.memorizationData = data;
+                    localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(data));
+                } else {
+                    window.memorizationData = JSON.parse(localStorage.getItem('fiqh_muamalat_hafalan_data')) || {};
+                }
+            } catch (err) {
+                console.warn("Gagal mengambil data dari GitHub, guna LocalStorage:", err);
+                window.memorizationData = JSON.parse(localStorage.getItem('fiqh_muamalat_hafalan_data')) || {};
+            }
+            renderAllViews();
+        }
 
         function renderHeaderColumns() {
             const headerTr = document.getElementById('matrixTableHeader');
@@ -306,10 +250,10 @@
             headerTr.innerHTML = html;
         }
 
-        window.renderAllViews = function() {
+        function renderAllViews() {
             renderStudentList();
             renderStudentMatrix();
-        };
+        }
 
         function getStudentStats(stdId) {
             const records = window.memorizationData[stdId] || {};
@@ -495,20 +439,8 @@
             window.memorizationData[stdId][`${chId}_${colId}`] = selectedDate;
             
             localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(window.memorizationData));
-            if (window.saveDataToCloud) window.saveDataToCloud(window.memorizationData);
-
             closeDateModal();
             renderAllViews();
-        }
-
-        function exportDataJSON() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.memorizationData, null, 2));
-            const a = document.createElement('a');
-            a.setAttribute("href", dataStr);
-            a.setAttribute("download", `Hafalan_Fiqh_Backup_${new Date().toISOString().split('T')[0]}.json`);
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
         }
 
         function formatDateShort(dateStr) {
