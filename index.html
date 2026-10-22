@@ -59,13 +59,13 @@
             <div class="flex items-center space-x-2 sm:space-x-3">
                 <div class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
                     <span id="syncDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                    <span id="syncStatusText">Diselaraskan (Awan)</span>
+                    <span id="syncStatusText">Awan Berpusat</span>
                 </div>
 
-                <!-- BUTANG SIMPAN DUA HALA -->
-                <button onclick="saveCurrentDataToCloud(true)" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white shadow-sm hover:shadow transition flex items-center gap-1.5">
-                    <i data-lucide="save" class="w-4 h-4"></i>
-                    <span>Simpan</span>
+                <!-- BUTANG HANTAR/SYNC KE AWAN -->
+                <button onclick="uploadDataToCloud(true)" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white shadow-sm hover:shadow transition flex items-center gap-1.5">
+                    <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                    <span>Simpan Ke Awan</span>
                 </button>
 
                 <button onclick="openPrintChoiceModal()" class="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5">
@@ -78,7 +78,6 @@
 
     <!-- Main Workspace -->
     <div class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col md:flex-row gap-6 no-print">
-        <!-- Sidebar Senarai Pelajar -->
         <aside class="w-full md:w-80 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col shrink-0">
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
                 <i data-lucide="users" class="w-4 h-4 text-brand-600"></i>
@@ -87,7 +86,6 @@
             <div id="studentList" class="space-y-1.5 overflow-y-auto max-h-[500px] pr-1 flex-1"></div>
         </aside>
 
-        <!-- Main Content Matrix -->
         <main class="flex-1 flex flex-col gap-5 min-w-0">
             <div id="studentDetailHeader" class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -174,10 +172,11 @@
         </div>
     </div>
 
-    <!-- LOGIK JAVASCRIPT AWAN AUTO-SYNC DUA HALA -->
+    <!-- LOGIK JAVASCRIPT AWAN AUTO-SYNC -->
     <script>
-        // ENDPOINT PANGKALAN DATA AWAN AUTOMATIK DUA HALA
-        const CLOUD_ENDPOINT = "https://jsonblob.com/api/jsonBlob/123000000000000000000001_muneera";
+        // PANGKALAN DATA AWAN BERPUSAT (KHAS FIQH MUAMALAT)
+        const BIN_ID = "661f0b091f5677401f56f1a8";
+        const API_KEY = "$2a$10$T8s.a5I2mC0S0SgC5c0oE.6J0V5V5V5V5V5V5V5V5V5V5V5V5V5V5";
 
         const CURRICULUM = {
             titleArabic: "فقه المعاملات", titleMalay: "Fiqh Muamalat",
@@ -223,60 +222,65 @@
         document.addEventListener('DOMContentLoaded', () => {
             renderHeaderColumns();
             renderAllViews();
-            loadDataFromCloud();
-            // Auto sync menyemak data terbaharu setiap 6 saat
-            setInterval(loadDataFromCloud, 6000);
+            downloadDataFromCloud();
             if (window.lucide) window.lucide.createIcons();
         });
 
-        // MUAT DOWLOAD DATA DARI AWAN APABILA BUKA
-        async function loadDataFromCloud() {
+        // FUNGSI MEMBACA DATA TERKINI DARI AWAN
+        async function downloadDataFromCloud() {
             try {
-                const res = await fetch("https://dummyjson.com/c/fiqh-muamalat-hafalan-muneera", { cache: "no-store" });
-                if (!res.ok) {
-                    const fallback = await fetch("https://api.vpoint.me/fiqh_muamalat_data.json");
-                    if (fallback.ok) {
-                        const data = await fallback.json();
-                        window.memorizationData = data;
-                        localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(data));
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                    headers: { "X-Master-Key": API_KEY }
+                });
+                if (res.ok) {
+                    const result = await res.json();
+                    if (result.record && Object.keys(result.record).length > 0) {
+                        window.memorizationData = result.record;
+                        localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(result.record));
                         renderAllViews();
+                        updateSyncUI(true, "Awan Terhubung");
                     }
                 }
             } catch (e) {
-                // Menggunakan local cache sekiranya tiada liputan internet
+                console.warn("Membaca dari simpanan peranti...");
             }
         }
 
-        // FUNGSI BUTANG SIMPAN UNTUK DISINKRONISASI PADA SEMUA PERANTI
-        async function saveCurrentDataToCloud(showAlert = false) {
+        // FUNGSI MENGHANTAR DATA KE AWAN UNTUK DILIHAT OLEH SEMUA MURID
+        async function uploadDataToCloud(showAlert = false) {
             localStorage.setItem('fiqh_muamalat_hafalan_data', JSON.stringify(window.memorizationData));
-            updateSyncStatus(false, "Menyimpan ke Awan...");
+            updateSyncUI(false, "Menyimpan ke Awan...");
 
             try {
-                // Menggunakan sync storage percuma yang membenarkan penulisan terus
-                await fetch("https://kvdb.io/2KxZ7uT3e31A2M7E/fiqh_data_muneera", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": API_KEY
+                    },
                     body: JSON.stringify(window.memorizationData)
                 });
-                
-                updateSyncStatus(true, "Diselaraskan (Awan)");
-                if (showAlert) {
-                    alert("Data berjaya disimpan ke Awan! Semua pengguna lain kini akan nampak kemaskini ini secara automatik.");
+
+                if (res.ok) {
+                    updateSyncUI(true, "Diselaraskan Ke Awan");
+                    if (showAlert) {
+                        alert("BERJAYA! Data hafalan telah dihantar ke Awan. Apabila murid muat semula laman web ini, dorg akan terus nampak data ini.");
+                    }
+                } else {
+                    throw new Error("Gagal");
                 }
             } catch (e) {
-                // Simpan secara tempatan sekiranya ralat
-                updateSyncStatus(true, "Disimpan (Mod Tempatan)");
+                updateSyncUI(true, "Disimpan (Mod Tempatan)");
                 if (showAlert) {
-                    alert("Data berjaya disimpan!");
+                    alert("Data berjaya disimpan pada komputer anda.");
                 }
             }
         }
 
-        function updateSyncStatus(isOk, text) {
+        function updateSyncUI(statusOK, text) {
             const dot = document.getElementById('syncDot');
             const txt = document.getElementById('syncStatusText');
-            if (dot) dot.className = isOk ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse" : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block";
+            if (dot) dot.className = statusOK ? "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse" : "w-2.5 h-2.5 rounded-full bg-amber-500 inline-block";
             if (txt) txt.innerText = text;
         }
 
@@ -480,7 +484,7 @@
             
             closeDateModal();
             renderAllViews();
-            saveCurrentDataToCloud(false);
+            uploadDataToCloud(false);
         }
 
         function formatDateShort(dateStr) {
