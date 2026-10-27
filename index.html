@@ -102,7 +102,7 @@
             }
             try {
                 const docRef = doc(window.db, 'hafalan_records', 'main_data');
-                await setDoc(docRef, { records: data, lastUpdated: new Date().toISOString() }, { merge: true });
+                await setDoc(docRef, { records: data, lastUpdated: new Date().toISOString() });
                 if (showAlert) {
                     alert("BERJAYA SIMPAN KE AWAN! Semua murid & guru dari mana-mana telefon/komputer kini boleh melihat data ini secara live.");
                 }
@@ -238,14 +238,21 @@
 
     <div id="printSection" class="hidden print-container"></div>
 
-    <!-- Date Picker Modal -->
+    <!-- Date Picker Modal + BUTANG PADAM TARIKH -->
     <div id="dateModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden no-print">
         <div class="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-sm w-full p-5 space-y-4">
             <h3 class="font-bold text-slate-800 text-sm">Tandakan Tarikh Hafalan</h3>
             <input type="date" id="modalDatePicker" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-            <div class="flex justify-end gap-2">
-                <button onclick="closeDateModal()" class="px-3 py-1.5 text-xs text-slate-600">Batal</button>
-                <button onclick="saveDateSelection()" class="px-4 py-1.5 text-xs bg-brand-600 text-white font-semibold rounded-lg">Simpan</button>
+            
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                <button onclick="deleteDateSelection()" class="px-3 py-1.5 text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 font-semibold rounded-lg flex items-center gap-1 transition">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span>Padam (Hafal Semula)</span>
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeDateModal()" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg">Batal</button>
+                    <button onclick="saveDateSelection()" class="px-4 py-1.5 text-xs bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg shadow-xs">Simpan</button>
+                </div>
             </div>
         </div>
     </div>
@@ -265,7 +272,7 @@
             chapters: [
                 { id: "al_bai", nameMalay: "Al-Bai' (Jual Beli)", nameArabic: "البيع", requirements: { takrif: true, dalil: true, ahkam: true, anwa: true, arkan: true, shurut: true } },
                 { id: "al_riba", nameMalay: "Al-Riba", nameArabic: "الربا", requirements: { takrif: true, dalil: true, ahkam: true, anwa: true, arkan: false, shurut: true } },
-                { id: "al_khiyar", nameMalay: "Al-Khiyar", nameArabic: "الخيار", requirements: { takrif: false, dalil: false, ahkam: true, anwa: true, arkan: false, shurut: false } },
+                { id: "al_khiyar", nameMalay: "Al-Khiyar", nameArabic: "الخيار", requirements: { takrif: false, dalil: false, ahkam: false, anwa: true, arkan: false, shurut: false } },
                 { id: "al_salam", nameMalay: "Al-Salam", nameArabic: "السلم", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
                 { id: "al_rahn", nameMalay: "Al-Rahn (Gadai)", nameArabic: "الرهن", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
                 { id: "al_dhaman", nameMalay: "Al-Dhaman (Jaminan)", nameArabic: "الضمان", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
@@ -318,6 +325,7 @@
         window.renderAllViews = function() {
             renderStudentList();
             renderStudentMatrix();
+            if (window.lucide) window.lucide.createIcons();
         };
 
         function getStudentStats(stdId) {
@@ -503,6 +511,19 @@
             const selectedDate = document.getElementById('modalDatePicker').value;
             if (!window.memorizationData[stdId]) window.memorizationData[stdId] = {};
             window.memorizationData[stdId][`${chId}_${colId}`] = selectedDate;
+            
+            closeDateModal();
+            renderAllViews();
+            saveCurrentData(false);
+        }
+
+        // FUNGSI PADAM TARIKH (BILA MURID PERLU HAFAL SEMULA)
+        function deleteDateSelection() {
+            if (!activeTargetCell) return;
+            const { stdId, chId, colId } = activeTargetCell;
+            if (window.memorizationData[stdId] && window.memorizationData[stdId][`${chId}_${colId}`]) {
+                delete window.memorizationData[stdId][`${chId}_${colId}`];
+            }
             
             closeDateModal();
             renderAllViews();
