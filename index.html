@@ -33,6 +33,7 @@
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
         @media print {
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .no-print, header, aside, #matrixFilterBar, #dateModal, #syncModal, #printChoiceModal, button { display: none !important; }
             body { background: white !important; color: black !important; padding: 0 !important; }
             .print-container { display: block !important; width: 100% !important; margin: 0 !important; }
@@ -432,8 +433,8 @@
                     const isReq = ch.requirements[col.id];
                     const dateVal = records[`${ch.id}_${col.id}`];
                     if (!isReq) rowsHtml += `<td style="text-align:center; background:#f1f5f9;">🔒 X</td>`;
-                    else if (dateVal) rowsHtml += `<td style="text-align:center; color:#15803d; font-weight:bold;">✅ ${formatDateShort(dateVal)}</td>`;
-                    else rowsHtml += `<td style="text-align:center; color:#b91c1c;">❌ Belum</td>`;
+                    else if (dateVal) rowsHtml += `<td style="text-align:center; font-weight:bold;">✅ ${formatDateShort(dateVal)}</td>`;
+                    else rowsHtml += `<td style="text-align:center; color:#b91c1c; background:#fee2e2;">❌ Belum</td>`;
                 });
                 rowsHtml += `</tr>`;
             });
@@ -457,6 +458,7 @@
             window.print();
         }
 
+        // FUNGSI LAPORAN KESELURUHAN KELAS (HANYA KOTAK BELUM FULL DIWARNAKAN MERAH)
         function printClassOverviewReport() {
             closePrintModal();
             const todayStr = new Date().toLocaleDateString('ms-MY');
@@ -468,13 +470,29 @@
             INITIAL_STUDENTS.forEach((std, idx) => {
                 const { count, pct } = getStudentStats(std.id);
                 const records = window.memorizationData[std.id] || {};
-                rowsHtml += `<tr><td style="text-align:center;">${idx + 1}</td><td>${std.name}</td><td style="text-align:center; font-weight:bold;">${pct}% (${count}/${totalMandatoryItems})</td>`;
+                
+                // Kemajuan Keseluruhan Pelajar (Warna Merah jika belum 100%, Putih jika 100%)
+                const overallBg = pct === 100 ? 'background-color:#ffffff; color:#000000;' : 'background-color:#fee2e2; color:#b91c1c; font-weight:bold;';
+                rowsHtml += `<tr>
+                    <td style="text-align:center;">${idx + 1}</td>
+                    <td style="font-weight:600;">${std.name}</td>
+                    <td style="text-align:center; ${overallBg}">${pct}% (${count}/${totalMandatoryItems})</td>`;
+                
+                // Bab Setiap Pelajar (HANYA WARNA MERAH JIKA BELUM LENGKAP)
                 CURRICULUM.chapters.forEach(ch => {
                     let reqCount = 0, doneCount = 0;
                     Object.keys(ch.requirements).forEach(colId => {
-                        if (ch.requirements[colId]) { reqCount++; if (records[`${ch.id}_${colId}`]) doneCount++; }
+                        if (ch.requirements[colId]) { 
+                            reqCount++; 
+                            if (records[`${ch.id}_${colId}`]) doneCount++; 
+                        }
                     });
-                    rowsHtml += `<td style="text-align:center;">${doneCount}/${reqCount}</td>`;
+
+                    const isFull = doneCount === reqCount;
+                    // Jika belum full -> petak diwarnakan MERAH, Jika full -> petak PUTIH biasa
+                    const cellBg = isFull ? 'background-color:#ffffff; color:#000000;' : 'background-color:#fee2e2; color:#b91c1c; font-weight:bold;';
+
+                    rowsHtml += `<td style="text-align:center; ${cellBg}">${doneCount}/${reqCount}</td>`;
                 });
                 rowsHtml += `</tr>`;
             });
@@ -485,13 +503,27 @@
                     <h2 style="font-size:16px; font-weight:bold; margin:0;">SISTEM SEMAKAN HAFALAN FIQH MUAMALAT</h2>
                     <h3 style="font-size:14px; font-weight:bold; margin:5px 0 0 0;">RINGKASAN PENCAPAIAN KESELURUHAN KELAS</h3>
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:15px; font-weight:600;">
                     <span><strong>Jumlah Pelajar:</strong> ${INITIAL_STUDENTS.length} Orang</span>
                     <span><strong>Purata Kelas:</strong> ${classAvg}%</span>
                     <span><strong>Tarikh Cetakan:</strong> ${todayStr}</span>
                 </div>
                 <table style="width:100%; margin-bottom:30px;">
-                    <thead><tr style="background:#f8fafc;"><th style="width:30px; text-align:center;">BIL</th><th>NAMA PELAJAR</th><th style="text-align:center;">KEMAJUAN</th><th>Al-Bai'</th><th>Al-Riba</th><th>Khiyar</th><th>Salam</th><th>Rahn</th><th>Dhaman</th><th>Wakalah</th><th>Qiradh</th></tr></thead>
+                    <thead>
+                        <tr style="background:#f8fafc;">
+                            <th style="width:30px; text-align:center;">BIL</th>
+                            <th>NAMA PELAJAR</th>
+                            <th style="text-align:center;">KEMAJUAN</th>
+                            <th>Al-Bai'</th>
+                            <th>Al-Riba</th>
+                            <th>Khiyar</th>
+                            <th>Salam</th>
+                            <th>Rahn</th>
+                            <th>Dhaman</th>
+                            <th>Wakalah</th>
+                            <th>Qiradh</th>
+                        </tr>
+                    </thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
             `;
