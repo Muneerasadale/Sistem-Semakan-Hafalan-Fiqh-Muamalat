@@ -175,7 +175,7 @@
                         <div class="text-right">
                             <div class="text-xs text-slate-500 font-medium">Keseluruhan Hafal</div>
                             <div class="text-xl font-bold text-emerald-600">
-                                <span id="studentScoreText">0</span> / <span id="totalRequiredText">38</span>
+                                <span id="studentScoreText">0</span> / <span id="totalRequiredText">0</span>
                             </div>
                         </div>
                         <div class="text-xl font-bold text-slate-700" id="studentPctText">0%</div>
@@ -263,10 +263,10 @@
                 { id: "shurut", nameMalay: "Shurut (Syarat)", nameArabic: "شروط" }
             ],
             chapters: [
-                { id: "al_bai", nameMalay: "Al-Bai' (Jual Beli)", nameArabic: "البيع", requirements: { takrif: true, dalil: true, ahkam: false, anwa: true, arkan: true, shurut: true } },
+                { id: "al_bai", nameMalay: "Al-Bai' (Jual Beli)", nameArabic: "البيع", requirements: { takrif: true, dalil: true, ahkam: true, anwa: true, arkan: true, shurut: true } },
                 { id: "al_riba", nameMalay: "Al-Riba", nameArabic: "الربا", requirements: { takrif: true, dalil: true, ahkam: true, anwa: true, arkan: false, shurut: true } },
-                { id: "al_khiyar", nameMalay: "Al-Khiyar", nameArabic: "الخيار", requirements: { takrif: false, dalil: false, ahkam: false, anwa: true, arkan: false, shurut: false } },
-                { id: "al_salam", nameMalay: "Al-Salam", nameArabic: "السلم", requirements: { takrif: true, dalil: true, ahkam: false, anwa: false, arkan: true, shurut: true } },
+                { id: "al_khiyar", nameMalay: "Al-Khiyar", nameArabic: "الخيار", requirements: { takrif: false, dalil: false, ahkam: true, anwa: true, arkan: false, shurut: false } },
+                { id: "al_salam", nameMalay: "Al-Salam", nameArabic: "السلم", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
                 { id: "al_rahn", nameMalay: "Al-Rahn (Gadai)", nameArabic: "الرهن", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
                 { id: "al_dhaman", nameMalay: "Al-Dhaman (Jaminan)", nameArabic: "الضمان", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
                 { id: "al_wakalah", nameMalay: "Al-Wakalah (Wakil)", nameArabic: "الوكالة", requirements: { takrif: true, dalil: true, ahkam: true, anwa: false, arkan: true, shurut: true } },
@@ -357,6 +357,7 @@
             document.getElementById('studentNameDisplay').innerText = std.name;
             const { count, pct } = getStudentStats(std.id);
             document.getElementById('studentScoreText').innerText = count;
+            document.getElementById('totalRequiredText').innerText = totalMandatoryItems;
             document.getElementById('studentPctText').innerText = `${pct}%`;
 
             const tbody = document.getElementById('matrixTableBody');
